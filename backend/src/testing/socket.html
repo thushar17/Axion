@@ -23,7 +23,9 @@ socket.on("message-recieved",(msg)=>{
        content: "heelo hi",
        sender: "Thushar",
        roomId: "backend"
-});
+},
+(response)=> console.log(response)
+);
     socket.on("send-message",(msg)=>{
         console.log(msg)
     })

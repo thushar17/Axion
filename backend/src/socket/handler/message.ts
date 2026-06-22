@@ -13,7 +13,7 @@ export const registerMessageHandlers = (socket: Socket, io:Server)=>{
           });
           callback({
             success: true,
-            message: message._id
+            messageId: message._id
           })
     
           io.to(data.roomId).emit("new-message", message);
