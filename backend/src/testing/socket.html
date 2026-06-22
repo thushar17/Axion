@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket Test</title>
+</head>
+<body>
+    <h1>Socket Test</h1>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+
+    <script>
+        const socket = io("http://localhost:8000");
+socket.on("message-recieved",(msg)=>{
+    console.log(msg)
+})
+        socket.on("connect", () => {
+            socket.emit("join-room","backend")
+            console.log("Connected:", socket.id);
+
+             socket.emit("send-message", {
+       content: "heelo hi",
+       sender: "Thushar",
+       roomId: "backend"
+});
+    socket.on("send-message",(msg)=>{
+        console.log(msg)
+    })
+        });
+        socket.on("disconnect", () => {
+            console.log("Disconnected");
+        });
+    </script>
+</body>
+</html>
