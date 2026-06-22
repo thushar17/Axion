@@ -97,7 +97,12 @@ AuthRouter.post("/login", async(req: Request, res: Response)=>{
        {expiresIn: '1h'}
    )
     res.cookie('token',token,{
-        httpOnly: true
+        httpOnly: true,
+        sameSite: 'lax'
+    })
+    return res.status(200).json({
+        success: true,
+        message: "login successful"
     })
     })
 

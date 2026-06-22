@@ -1,12 +1,14 @@
 import {Router} from 'express'
 import type { Request, Response } from 'express';
 import { RoomModel } from '../models/rooms.js';
-
+import { authMiddleware } from '../middleware/authMIddleware.js';
 const router = Router()
 
-router.post("/rooms",async (req: Request, res: Response)=>{
+router.post("/rooms",authMiddleware,async (req: Request, res: Response)=>{
     try{
-        const {name, type, createdBy} = req.body;
+        const {name, type} = req.body;
+        const user  = (req as any).user;
+        const createdBy = user.id 
         if(!name || !type || !createdBy){
             return res.status(400).json({
                 success: false,

@@ -1,44 +1,36 @@
-import {Server} from 'socket.io'
-import http from 'http'
-import { MessageModel } from '../models/messages.js';
+import { Server } from "socket.io";
+import http from "http";
+import { MessageModel } from "../models/messages.js";
+import { handelOnlineUsers } from "./handler/presence.js";
+import { socketAuthMiddleware } from "./middleware/auth.js";
+import { registerMessageHandlers } from "./handler/message.js";
+import { registerRoomHandler } from "./handler/room.js";
 
-export const initializedSocket = (server: http.Server)=>{
-    console.log("Socket server initialized");
-    const io = new Server (server, {
-        cors:{
-            origin: "*"
-        }
-    })
 
-    
-    // seeting up a connection with room
-  io.on("connection",(socket)=>{
-    socket.on("join-room", async (roomId)=>{
-        socket.join(roomId)
-         // load previous messages
-        const historyMessages = await MessageModel.find({
-            roomId
-        })
-        .sort({createdAt: -1})
-        .limit(50)
+export const initializedSocket = (server: http.Server) => {
+  console.log("Socket server initialized");
 
-        socket.emit('message-history',historyMessages)
-    
-            console.log(`${socket.id} joined ${roomId}`)
-        socket.emit("room-joined", roomId)
-    })
+  const io = new Server(server, {
+    cors: {
+      origin: "http://localhost:3000",
+      credentials: true,
+    },
+  });
 
-    
-    socket.on("send-message", async (data)=>{
-            const message = await MessageModel.create({
-                roomId: data.roomId,
-                sender: data.sender, 
-                content: data.content
-            })
+  // Socket Authentication Middleware
+  socketAuthMiddleware(io)
+  io.on("connection",async (socket) => {
+   await   handelOnlineUsers(socket) 
+    console.log(`Socket connected: ${socket.id}`);
+    //join room
+    registerRoomHandler(socket)
+    // Send Message
+   registerMessageHandlers(socket , io)
 
-            io.to(data.roomId).emit("new-message",message)
-        })
-  })
-   
-    return io;
-}
+    socket.on("disconnect", () => {
+      console.log(`Socket disconnected: ${socket.id}`);
+    });
+  });
+
+  return io;
+};

@@ -1,20 +1,15 @@
 import type { Request, Response, NextFunction } from "express"
-import { verify } from 'jsonwebtoken'
-
+import jwt from 'jsonwebtoken'
 export const authMiddleware = async(req:Request , res:Response , next:NextFunction)=>{
     const token = req.cookies.token
-    const jwtSecret = process.env.JWT_SECRET
 
     if(!token){
         return  res.status(401).json({ error: 'Unauthorized' })
     }
-    if(!jwtSecret){
-        return res.status(500).json({ error: 'JWT secret not configured' })
-    }
    try {
-     const decoded = verify(token , jwtSecret);
-      
-       (req as any).user = decoded
+     const decoded = jwt.verify(
+  token,process.env.JWT_SECRET as string);
+     (req as any).user = decoded ;                                                                                                                                                                                 ``
       next()
    } catch (error) {
     console.log(error)

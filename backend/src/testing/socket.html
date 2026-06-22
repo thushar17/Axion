@@ -9,7 +9,9 @@
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 
     <script>
-        const socket = io("http://localhost:8000");
+        const socket = io("http://localhost:8000",{
+            withCredentials: true
+        });
 socket.on("message-recieved",(msg)=>{
     console.log(msg)
 })
