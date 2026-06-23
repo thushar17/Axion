@@ -3,6 +3,7 @@ import type { Request, Response } from 'express'
 import { UserModel } from '../models/user.js'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import { authMiddleware } from '../middleware/authMIddleware.js'
 const AuthRouter = Router()
 
 AuthRouter.post('/register', async (req: Request, res: Response) => {
@@ -107,6 +108,13 @@ AuthRouter.post("/login", async (req: Request, res: Response) => {
     })
 })
 
+AuthRouter.get("/me", authMiddleware, (req: Request, res: Response) => {
+    const user = (req as any).user;
+    return res.status(200).json({
+        success: true,
+        user
+    })
+})
 
 
 export default AuthRouter
