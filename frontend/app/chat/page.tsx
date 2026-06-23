@@ -12,7 +12,7 @@ export default function ChatPage() {
   const [user, setUser] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
-
+  // verifying user auth
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -33,6 +33,8 @@ export default function ChatPage() {
     checkAuth();
   }, [router]);
 
+
+  // trigerring socket events 
   useEffect(() => {
     if (!user) return;
 
@@ -88,7 +90,7 @@ export default function ChatPage() {
       socket.disconnect();
     };
   }, [user, router]);
-
+  // message send 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -126,7 +128,7 @@ export default function ChatPage() {
             Backend Room
           </h1>
 
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-black">
             {user?.email}
           </p>
         </div>
@@ -167,7 +169,7 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 border rounded-lg px-4 py-2 outline-none"
+            className="flex-1 border rounded-lg px-4 py-2 outline-none text-black"
           />
 
           <button
