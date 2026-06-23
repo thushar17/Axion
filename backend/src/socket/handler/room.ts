@@ -1,18 +1,18 @@
 import type { Socket } from "socket.io";
 import { MessageModel } from "../../models/messages.js";
 
-export const registerRoomHandler =(socket: Socket)=>{
-    socket.on("join-roon",async (roomId)=>{
+export const registerRoomHandler = (socket: Socket) => {
+    socket.on("join-room", async (roomId) => {
         socket.join(roomId)
-
+        console.log(`${socket.id} joined ${roomId}`);
         const historyMessages = await MessageModel.find({
             roomId
         })
-        .sort({createdAt: -1})
-        .limit(50)
+            .sort({ createdAt: -1 })
+            .limit(50)
 
         socket.emit("message-history", historyMessages)
-         console.log(`${socket.id} joined ${roomId}`);
-         socket.emit("room-joined", roomId);
+
+        socket.emit("room-joined", roomId);
     })
 }

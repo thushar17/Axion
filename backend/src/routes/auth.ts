@@ -5,35 +5,35 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 const AuthRouter = Router()
 
-AuthRouter.post('/register',async (req: Request, res: Response)=>{
-    const {email, username, password, avatar} = req.body;
-    if(!email){
+AuthRouter.post('/register', async (req: Request, res: Response) => {
+    const { email, username, password, avatar } = req.body;
+    if (!email) {
         return res.status(400).json({
             success: false,
             message: "email not defined"
         })
     }
-     if(!username){
+    if (!username) {
         return res.status(400).json({
             success: false,
             message: "username not defined"
         })
     }
-     if(!password){
+    if (!password) {
         return res.status(400).json({
             success: false,
             message: "password not defined"
         })
     }
-     const existingUser = await UserModel.findOne({
+    const existingUser = await UserModel.findOne({
         email
-     })
-     if(existingUser){
+    })
+    if (existingUser) {
         return res.status(400).json({
             success: false,
             message: "Email already registered"
         })
-     }
+    }
     try {
         const user = await UserModel.create({
             email,
@@ -58,45 +58,46 @@ AuthRouter.post('/register',async (req: Request, res: Response)=>{
 
 // login route
 
-AuthRouter.post("/login", async(req: Request, res: Response)=>{
-     const {email, password} = req.body;
+AuthRouter.post("/login", async (req: Request, res: Response) => {
+    const { email, password } = req.body;
 
-     if(!email){
-       return res.status(400).json({
+    if (!email) {
+        return res.status(400).json({
             success: false,
             message: "email not defined"
-     })
+        })
     }
-     if(!password){
-            return res.status(400).json({
+    if (!password) {
+        return res.status(400).json({
             success: false,
             message: "password not defined"
         })
-     }
-      
-     const user = await UserModel.findOne({email})
-     if(!user){
+    }
+
+    const user = await UserModel.findOne({ email })
+    if (!user) {
         return res.status(400).json({
             success: false,
             message: "Email not registered yet"
         })
-     }
-    
-    const checkPassword =await bcrypt.compare(password, user.passwordHash) 
-    if(!checkPassword){
+    }
+
+    const checkPassword = await bcrypt.compare(password, user.passwordHash)
+    if (!checkPassword) {
         return res.status(400).json({
             success: false,
             message: "Invalid credentials"
         })
     }
-   const token = jwt.sign(
-       {id: user._id,
-        email: user.email
-       },
-       process.env.JWT_SECRET as string,
-       {expiresIn: '1h'}
-   )
-    res.cookie('token',token,{
+    const token = jwt.sign(
+        {
+            id: user._id,
+            email: user.email
+        },
+        process.env.JWT_SECRET as string,
+        { expiresIn: '1d' }
+    )
+    res.cookie('token', token, {
         httpOnly: true,
         sameSite: 'lax'
     })
@@ -104,7 +105,7 @@ AuthRouter.post("/login", async(req: Request, res: Response)=>{
         success: true,
         message: "login successful"
     })
-    })
+})
 
 
 

@@ -10,30 +10,49 @@ export default function ChatPage() {
     socket.on("connect", () => {
       console.log("Connected:", socket.id);
 
-      socket.emit("join-room","backend")
+      socket.emit("join-room", "backend")
 
       socket.emit("send-message",
         {
           content: " hello from frontend",
           roomId: "backend"
         },
-        (response: any)=>{
+        (response: any) => {
           console.log(response)
         }
       )
     });
 
-      socket.on("room-joined", (roomId) => {
-  console.log("Joined room:", roomId);
-});
+    socket.on("room-joined", (roomId) => {
+      console.log("hello")
+      console.log("Joined room:", roomId);
 
-socket.on("message-history", (messages) => {
-  console.log("History:", messages);
-});
+      socket.emit("message-seen",
+        roomId
+      )
+    });
 
-socket.on("new-message", (message) => {
-  console.log("New Message:", message);
-});
+    // revieved new message
+    socket.on("new-message", (message) => {
+      console.log("New Message:", message);
+
+      socket.emit("message-delivered",
+        { messageId: message._id }
+      )
+    });
+
+    // listening for messsage deliverd 
+
+    socket.on("message-status-updated", (data) => {
+      console.log("MEssage status updates:", data)
+    })
+
+    socket.on("message-history", (messages) => {
+
+      console.log("History:", messages);
+    });
+
+
 
     return () => {
       socket.disconnect();

@@ -1,16 +1,16 @@
 import { UserModel } from "../../models/user.js";
 import { Socket } from "socket.io";
 
-const onlineUser = new Map<string , number>()
+const onlineUser = new Map<string, number>()
 
-export const handelOnlineUsers = async(socket:Socket)=>{
-            const userId = (socket as any).user.id;
+export const handelOnlineUsers = async (socket: Socket) => {
+  const userId = (socket as any).user.id;
 
-            const currentCount = onlineUser.get(userId)?? 0;
-            const newCount = currentCount +1;
-            onlineUser.set(userId, newCount);
-        
-            if (newCount === 1) {
+  const currentCount = onlineUser.get(userId) ?? 0;
+  const newCount = currentCount + 1;
+  onlineUser.set(userId, newCount);
+
+  if (newCount === 1) {
     await UserModel.findByIdAndUpdate(userId, { status: "online" });
     console.log(`User ${userId} is now online`);
   }
@@ -22,10 +22,10 @@ export const handelOnlineUsers = async(socket:Socket)=>{
     if (updatedCount <= 0) {
       // Remove from map and mark offline
       onlineUser.delete(userId);
-      await UserModel.findByIdAndUpdate(userId, { status: "offline" , lastSeen: new Date()});
+      await UserModel.findByIdAndUpdate(userId, { status: "offline", lastSeen: new Date() });
       console.log(`User ${userId} is now offline`);
     } else {
       onlineUser.set(userId, updatedCount);
     }
   });
-   }
+}

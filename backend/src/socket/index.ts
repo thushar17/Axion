@@ -1,6 +1,5 @@
 import { Server } from "socket.io";
 import http from "http";
-import { MessageModel } from "../models/messages.js";
 import { handelOnlineUsers } from "./handler/presence.js";
 import { socketAuthMiddleware } from "./middleware/auth.js";
 import { registerMessageHandlers } from "./handler/message.js";
@@ -19,13 +18,18 @@ export const initializedSocket = (server: http.Server) => {
 
   // Socket Authentication Middleware
   socketAuthMiddleware(io)
-  io.on("connection",async (socket) => {
-   await   handelOnlineUsers(socket) 
+  io.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id}`);
-    //join room
+
+    // Register handlers synchronously first to avoid race condition
     registerRoomHandler(socket)
-    // Send Message
-   registerMessageHandlers(socket , io)
+    console.log("Room handlers registered");
+    registerMessageHandlers(socket, io)
+
+    // Handle online users without blocking listener registration
+    handelOnlineUsers(socket).catch(err => {
+      console.error("Error in handelOnlineUsers:", err);
+    });
 
     socket.on("disconnect", () => {
       console.log(`Socket disconnected: ${socket.id}`);
