@@ -6,6 +6,7 @@ import cors from 'cors';
 import { connectDB } from './config/db.js';
 import { initializedSocket } from './socket/index.js';
 import AuthRouter from './routes/auth.js';
+import RoomRouter from './routes/rooms.js';
 
 
 dotenv.config();
@@ -23,12 +24,13 @@ const PORT = 8000
 
 const server = http.createServer(app)
 initializedSocket(server)
-app.use("/auth",AuthRouter)
-app.get('/',(req,res)=>{
-    res.json({message: 'Sucess'})
+app.use("/auth", AuthRouter)
+app.use("/room", RoomRouter)
+app.get('/', (req, res) => {
+    res.json({ message: 'Sucess' })
 })
 
 
-server.listen(PORT,()=>{
-     console.log(`app listening at port ${PORT}`)
+server.listen(PORT, () => {
+    console.log(`app listening at port ${PORT}`)
 })

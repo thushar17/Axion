@@ -103,6 +103,7 @@ AuthRouter.post("/login", async (req: Request, res: Response) => {
         sameSite: 'lax'
     })
     return res.status(200).json({
+        token,
         success: true,
         message: "login successful"
     })
