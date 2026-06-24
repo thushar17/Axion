@@ -19,8 +19,10 @@ RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) =
     const room = await RoomModel.create({
       name,
       type,
-      createdBy
+      createdBy,
+      members: user.id
     })
+    console.log(room)
     return res.status(200).json({
       success: true,
       message: "Room created successfully",
@@ -52,6 +54,28 @@ RoomRouter.get('/getRooms', async (req: Request, res: Response) => {
       message: "Internal server error",
     })
   }
+})
+// for adding members 
+RoomRouter.post('/add-member', authMiddleware,async(req: Request, res: Response)=>{
+    try {
+      const user = (req as any).user
+      const {roomId,userId} = req.body;
+
+      console.log("userID", userId)
+      const room = await RoomModel.findByIdAndUpdate(roomId,
+        {$addToSet:{
+          members:userId
+        }},
+        {returnDocument: 'after'}
+      )
+      console.log(room)
+      res.json({
+        roomId,
+        userId
+      })
+    } catch (error) {
+      console.log(error)
+    }
 })
 
 export default RoomRouter;

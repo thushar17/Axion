@@ -12,10 +12,10 @@ export default function ChatPage() {
   const [user, setUser] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
-  const [rooms, setRooms] = useState("")
-  const [roomTypes, setRoomTypes] = useState("")
+  const [roomName, setRoomName] = useState("")
+  const [roomType, setRoomType] = useState("")
   const [allRooms , setAllRooms] = useState<any[]>([])
-  const [selectedRooms, setSelectedRooms] = useState<any>(null)
+  const [selectedRoom, setSelectedRoom] = useState<any>(null)
   // verifying user auth
   useEffect(() => {
     const checkAuth = async () => {
@@ -112,34 +112,8 @@ export default function ChatPage() {
     setInput("");
   };
 
-  // room creatin form 
-  const handleRoomCreation = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      const response = await axios.post("http://localhost:8000/room/create",
-        {
-          name: rooms,
-          type: roomTypes
-        }, {
-        withCredentials: true
-      }
-      )
-
-      if (response.status == 400) {
-        return alert("Error while creating room")
-      }
-      alert(response.data.message)
-      setRooms("")
-      setRoomTypes("")
-    } catch (error) {
-      console.log(error)
-    }
-
-  }
-// fetching all rooms
-useEffect(()=>{
-  const fetchAllRooms = async()=>{
+  // fetching all rooms
+const fetchRooms = async()=>{
      try {
        const response = await axios.get("http://localhost:8000/room/getRooms")
        if(response.status!== 200){
@@ -149,22 +123,51 @@ useEffect(()=>{
        }
       setAllRooms(response.data.data)
       if(response.data.data.length>0){
-        setSelectedRooms(response.data.data[0])
+        setSelectedRoom(response.data.data[0])
       }
 
      } catch (error) {
       
      }
   }
-fetchAllRooms()
+
+  // room creatin form 
+  const handleRoomCreation = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const response = await axios.post("http://localhost:8000/room/create",
+        {
+          name: roomName,
+          type: roomType
+        }, {
+        withCredentials: true
+      }
+      )
+
+      if (response.status == 400) {
+        return alert("Error while creating room")
+      }
+      alert(response.data.message)
+      await fetchRooms()
+      setRoomName("")
+      setRoomType("")
+    } catch (error) {
+      console.log(error)
+    }
+
+  }
+
+useEffect(()=>{
+  fetchRooms()
 },[])
 
 // join selected rooms
 useEffect(()=>{
-  if(!selectedRooms) return
+  if(!selectedRoom) return
 
-  socket.emit('join-room',selectedRooms.name)
-},[selectedRooms])
+  socket.emit('join-room',selectedRoom.name)
+},[selectedRoom])
 
   if (loading) {
     return (
@@ -204,14 +207,14 @@ useEffect(()=>{
           <input
             type="text"
             placeholder="Room Name"
-            value={rooms}
-            onChange={(e) => setRooms(e.target.value)}
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
             className="w-full rounded-lg bg-zinc-800 text-white px-3 py-2 outline-none border border-zinc-700"
           />
 
           <select
-            value={roomTypes}
-            onChange={(e) => setRoomTypes(e.target.value)}
+            value={roomType}
+            onChange={(e) => setRoomType(e.target.value)}
             className="w-full rounded-lg bg-zinc-800 text-white px-3 py-2 border border-zinc-700"
           >
             <option value="">Select Type</option>
@@ -238,9 +241,9 @@ useEffect(()=>{
           {allRooms.map((room: any) => (
             <button
               key={room._id}
-              onClick={()=>setSelectedRooms(room)}
+              onClick={()=>setSelectedRoom(room)}
               className={`w-full text-left px-3 py-3 rounded-lg transition ${
-  selectedRooms?._id === room._id
+  selectedRoom?._id === room._id
     ? "bg-blue-600 text-white"
     : "bg-zinc-800 text-white hover:bg-zinc-700"
 }`}
@@ -259,7 +262,7 @@ useEffect(()=>{
       <div className="border-b px-6 py-4 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-semibold text-black">
-              {selectedRooms?.name || "Select Room"}
+              {selectedRoom?.name || "Select Room"}
           </h1>
 
           <p className="text-sm text-zinc-500">

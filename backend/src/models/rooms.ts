@@ -11,10 +11,10 @@ const RoomSchema = new Schema({
         enum: ["public","private"],
         required: true
     },
-    members:[
-        {
-            type: String,
-        }
+    members:[{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }
     ],
     createdBy:{
         type: String,
