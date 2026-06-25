@@ -2,14 +2,14 @@ import type { Socket } from "socket.io";
 import { MessageModel } from "../../models/messages.js";
 
 export const registerRoomHandler = (socket: Socket) => {
+    socket.on("join-rooms", (roomIds: string[]) => {
+        if (Array.isArray(roomIds)) {
+            roomIds.forEach(id => socket.join(id));
+        }
+    });
+
     socket.on("join-room", async (roomId) => {
-      
-         for(const room of socket.rooms){
-            if(room != socket.id){
-                socket.leave(room)
-            }
-         }
-           socket.join(roomId)
+        socket.join(roomId);
         const historyMessages = await MessageModel.find({
             roomId
         })

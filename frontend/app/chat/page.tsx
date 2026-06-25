@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { useEffect, useState,useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { socket } from "@/src/lib/socket";
 
 export default function ChatPage() {
@@ -16,11 +16,19 @@ export default function ChatPage() {
   const [roomType, setRoomType] = useState("")
   const [allRooms, setAllRooms] = useState<any[]>([])
   const [selectedRoom, setSelectedRoom] = useState<any>(null)
+  const selectedRoomRef = useRef<any>(null);
+
+  useEffect(() => {
+    selectedRoomRef.current = selectedRoom;
+  }, [selectedRoom]);
+
   const [members, setMembers] = useState<any[]>([])
   const [showAddMember, setShowAddMember] = useState(false);
   const [email, setEmail] = useState("")
   const [typingUsers, setTypingUsers] = useState<any[]>([])
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [unreadMessageCount, setUnreadMessageCount] = useState<{ [roomId: string]: number }>({})
+  let unreadMessages = 0;
   // verifying user auth
   useEffect(() => {
     const checkAuth = async () => {
@@ -65,14 +73,24 @@ export default function ChatPage() {
     });
 
     socket.on("new-message", (message) => {
-      setMessages((prev) => [...prev, message]);
+      const currentRoom = selectedRoomRef.current;
+      console.log(`hello i amm message id`, currentRoom)
+      
+      if (currentRoom && message.roomId === currentRoom._id) {
+        setMessages((prev) => [...prev, message]);
+        if (message.sender !== user.id) {
+          socket.emit("message-seen", currentRoom._id);
+        }
+      } else {
+        setUnreadMessageCount((prev) => ({
+          ...prev,
+          [message.roomId]: (prev[message.roomId] || 0) + 1,
+        }))
+      }
+
       socket.emit("message-delivered", {
         messageId: message._id,
-      }
-      )
-      if (message.sender !== user.id) {
-        socket.emit("message-seen", selectedRoom?._id);
-      }
+      })
     })
     socket.on("message-status-updated", (data) => {
       const ids = Array.isArray(data.messageId) ? data.messageId : [data.messageId];
@@ -86,18 +104,18 @@ export default function ChatPage() {
       );
     });
 
-    socket.on("typing-status",(data)=>{
-      setTypingUsers((prev)=>{
-        if(prev.includes(data.username)) return prev;
-        return[...prev, data.username]
+    socket.on("typing-status", (data) => {
+      setTypingUsers((prev) => {
+        if (prev.includes(data.username)) return prev;
+        return [...prev, data.username]
       })
     })
 
     socket.on("stop-typing-status", (data) => {
-  setTypingUsers((prev) =>
-    prev.filter((name) => name !== data.username)
-  );
-});
+      setTypingUsers((prev) =>
+        prev.filter((name) => name !== data.username)
+      );
+    });
 
     return () => {
       socket.off("connect");
@@ -117,7 +135,7 @@ export default function ChatPage() {
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!input.trim()) return;
+    if (!input.trim() || !selectedRoom) return;
 
     socket.emit(
       "send-message",
@@ -130,9 +148,9 @@ export default function ChatPage() {
       }
     );
     socket.emit("stop-typing", {
-  roomId: selectedRoom.name,
-  username: user.username,
-});
+      roomId: selectedRoom.name,
+      username: user.username,
+    });
 
     setInput("");
   };
@@ -148,6 +166,10 @@ export default function ChatPage() {
         )
       }
       setAllRooms(response.data.data)
+
+      const roomIds = response.data.data.map((r: any) => r._id);
+      socket.emit('join-rooms', roomIds);
+
       if (response.data.data.length > 0) {
         setSelectedRoom(response.data.data[0])
       }
@@ -189,23 +211,29 @@ export default function ChatPage() {
 
   }, [])
 
-const fetchMembers = async () => {
-      try {
-        const response = await axios.get(`http://localhost:8000/room/${selectedRoom._id}/members`, {
-          withCredentials: true
-        })
+  const fetchMembers = async () => {
+    try {
+      const response = await axios.get(`http://localhost:8000/room/${selectedRoom._id}/members`, {
+        withCredentials: true
+      })
 
-        setMembers(response.data.members)
-      } catch (error) {
-        console.error(error)
-      }
+      setMembers(response.data.members)
+    } catch (error) {
+      console.error(error)
     }
+  }
   // join selected rooms
   useEffect(() => {
     if (!selectedRoom) return
 
     socket.emit('join-room', selectedRoom._id)
-    
+
+    setUnreadMessageCount(prev => {
+      const newCount = { ...prev };
+      delete newCount[selectedRoom._id];
+      return newCount;
+    });
+
     fetchMembers()
   }, [selectedRoom])
 
@@ -213,6 +241,7 @@ const fetchMembers = async () => {
   // add member handel
 
   const handleAddMember = async () => {
+    if (!selectedRoom) return;
     try {
       const response = await axios.post("http://localhost:8000/room/add-member", {
         email,
@@ -220,7 +249,7 @@ const fetchMembers = async () => {
       }, {
         withCredentials: true
       })
-      
+
       if (response.data.success) {
         alert(response.data.message)
       }
@@ -233,26 +262,31 @@ const fetchMembers = async () => {
   // 
   const handelInputChange = (e: any) => {
     setInput(e.target.value)
+    if (!selectedRoom) return;
     socket.emit("typing",
       {
-          roomId: selectedRoom._id,
+        roomId: selectedRoom._id,
         username: user?.username
-      
+
 
       }
     )
-    if(typingTimeout.current){
+    if (typingTimeout.current) {
       clearTimeout(typingTimeout.current)
     }
 
     typingTimeout.current = setTimeout(() => {
-         socket.emit("stop-typing",{
-          roomId: selectedRoom._id,
-          username: user.username
+      socket.emit("stop-typing", {
+        roomId: selectedRoom._id,
+        username: user.username
 
-         })
+      })
     }, 1000);
   }
+
+  useEffect(() => {
+    console.log("heelo", unreadMessageCount)
+  }, [unreadMessageCount])
 
   if (loading) {
     return (
@@ -327,18 +361,25 @@ const fetchMembers = async () => {
               <button
                 key={room._id}
                 onClick={() => setSelectedRoom(room)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition ${selectedRoom?._id === room._id
+                className={`w-full text-left px-4 py-3 rounded-xl transition flex justify-between items-center ${selectedRoom?._id === room._id
                   ? "bg-blue-600 text-white"
                   : "bg-zinc-800 text-white hover:bg-zinc-700"
                   }`}
               >
-                <div className="font-medium">
-                  # {room.name}
-                </div>
+                <div>
+                  <div className="font-medium">
+                    # {room.name}
+                  </div>
 
-                <div className="text-xs opacity-70">
-                  {room.type}
+                  <div className="text-xs opacity-70">
+                    {room.type}
+                  </div>
                 </div>
+                {unreadMessageCount[room._id] ? (
+                  <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[1.5rem] text-center">
+                    {unreadMessageCount[room._id]}
+                  </div>
+                ) : null}
               </button>
             ))}
           </div>
@@ -397,13 +438,13 @@ const fetchMembers = async () => {
           onSubmit={sendMessage}
           className="border-t bg-white p-4 flex gap-3"
         >
-        {typingUsers.length > 0 && (
-  <div className="px-6 py-2 text-sm italic text-zinc-500">
-    {typingUsers.length === 1
-      ? `${typingUsers[0]} is typing...`
-      : `${typingUsers.join(", ")} are typing...`}
-  </div>
-)}
+          {typingUsers.length > 0 && (
+            <div className="px-6 py-2 text-sm italic text-zinc-500">
+              {typingUsers.length === 1
+                ? `${typingUsers[0]} is typing...`
+                : `${typingUsers.join(", ")} are typing...`}
+            </div>
+          )}
           <input
             type="text"
             value={input}
