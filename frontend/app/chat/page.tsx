@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState,useRef } from "react";
 import { socket } from "@/src/lib/socket";
 
 export default function ChatPage() {
@@ -14,8 +14,13 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [roomName, setRoomName] = useState("")
   const [roomType, setRoomType] = useState("")
-  const [allRooms , setAllRooms] = useState<any[]>([])
+  const [allRooms, setAllRooms] = useState<any[]>([])
   const [selectedRoom, setSelectedRoom] = useState<any>(null)
+  const [members, setMembers] = useState<any[]>([])
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [email, setEmail] = useState("")
+  const [typingUsers, setTypingUsers] = useState<any[]>([])
+  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   // verifying user auth
   useEffect(() => {
     const checkAuth = async () => {
@@ -66,7 +71,7 @@ export default function ChatPage() {
       }
       )
       if (message.sender !== user.id) {
-        socket.emit("message-seen", "backend");
+        socket.emit("message-seen", selectedRoom?._id);
       }
     })
     socket.on("message-status-updated", (data) => {
@@ -81,6 +86,19 @@ export default function ChatPage() {
       );
     });
 
+    socket.on("typing-status",(data)=>{
+      setTypingUsers((prev)=>{
+        if(prev.includes(data.username)) return prev;
+        return[...prev, data.username]
+      })
+    })
+
+    socket.on("stop-typing-status", (data) => {
+  setTypingUsers((prev) =>
+    prev.filter((name) => name !== data.username)
+  );
+});
+
     return () => {
       socket.off("connect");
       socket.off("connect_error");
@@ -88,6 +106,9 @@ export default function ChatPage() {
       socket.off("message-history");
       socket.off("new-message");
       socket.off("message-status-updated");
+      socket.off("typing-status")
+      socket.off("stop-typing-status");
+      socket.off("typing-status");
 
       socket.disconnect();
     };
@@ -101,34 +122,39 @@ export default function ChatPage() {
     socket.emit(
       "send-message",
       {
-        roomId: "backend",
+        roomId: selectedRoom._id,
         content: input,
       },
       (response: any) => {
         console.log("ACK:", response);
       }
     );
+    socket.emit("stop-typing", {
+  roomId: selectedRoom.name,
+  username: user.username,
+});
 
     setInput("");
   };
 
+
   // fetching all rooms
-const fetchRooms = async()=>{
-     try {
-       const response = await axios.get("http://localhost:8000/room/getRooms")
-       if(response.status!== 200){
+  const fetchRooms = async () => {
+    try {
+      const response = await axios.get("http://localhost:8000/room/getRooms")
+      if (response.status !== 200) {
         return alert(
           'faliled to fetch rooms'
         )
-       }
+      }
       setAllRooms(response.data.data)
-      if(response.data.data.length>0){
+      if (response.data.data.length > 0) {
         setSelectedRoom(response.data.data[0])
       }
 
-     } catch (error) {
-      
-     }
+    } catch (error) {
+
+    }
   }
 
   // room creatin form 
@@ -158,16 +184,75 @@ const fetchRooms = async()=>{
 
   }
 
-useEffect(()=>{
-  fetchRooms()
-},[])
+  useEffect(() => {
+    fetchRooms()
 
-// join selected rooms
-useEffect(()=>{
-  if(!selectedRoom) return
+  }, [])
 
-  socket.emit('join-room',selectedRoom.name)
-},[selectedRoom])
+const fetchMembers = async () => {
+      try {
+        const response = await axios.get(`http://localhost:8000/room/${selectedRoom._id}/members`, {
+          withCredentials: true
+        })
+
+        setMembers(response.data.members)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+  // join selected rooms
+  useEffect(() => {
+    if (!selectedRoom) return
+
+    socket.emit('join-room', selectedRoom._id)
+    
+    fetchMembers()
+  }, [selectedRoom])
+
+
+  // add member handel
+
+  const handleAddMember = async () => {
+    try {
+      const response = await axios.post("http://localhost:8000/room/add-member", {
+        email,
+        roomId: selectedRoom._id
+      }, {
+        withCredentials: true
+      })
+      
+      if (response.data.success) {
+        alert(response.data.message)
+      }
+      await fetchMembers()
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  // 
+  const handelInputChange = (e: any) => {
+    setInput(e.target.value)
+    socket.emit("typing",
+      {
+          roomId: selectedRoom._id,
+        username: user?.username
+      
+
+      }
+    )
+    if(typingTimeout.current){
+      clearTimeout(typingTimeout.current)
+    }
+
+    typingTimeout.current = setTimeout(() => {
+         socket.emit("stop-typing",{
+          roomId: selectedRoom._id,
+          username: user.username
+
+         })
+    }, 1000);
+  }
 
   if (loading) {
     return (
@@ -177,158 +262,256 @@ useEffect(()=>{
     );
   }
 
- return (
-  <main className="h-screen bg-zinc-950 flex p-4 gap-4">
+  return (
+    <main className="h-screen bg-zinc-950 flex gap-4 p-4">
 
-    {/* Sidebar */}
-    <div className="w-80 h-full bg-zinc-900 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden">
+      {/* LEFT SIDEBAR */}
+      <div className="w-80 h-full bg-zinc-900 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden">
 
-      {/* User Info */}
-      <div className="p-5 border-b border-zinc-800">
-        <h1 className="text-2xl font-bold text-white">
-          Zync
-        </h1>
+        {/* User */}
+        <div className="p-5 border-b border-zinc-800">
+          <h1 className="text-2xl font-bold text-white">
+            Zync
+          </h1>
 
-        <p className="text-zinc-400 text-sm mt-1">
-          {user?.email}
-        </p>
+          <p className="text-zinc-400 text-sm mt-1">
+            {user?.email}
+          </p>
+        </div>
+
+        {/* Create Room */}
+        <div className="p-4 border-b border-zinc-800">
+          <h2 className="text-white font-semibold mb-3">
+            Create Room
+          </h2>
+
+          <form
+            onSubmit={handleRoomCreation}
+            className="space-y-3"
+          >
+            <input
+              type="text"
+              placeholder="Room Name"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              className="w-full rounded-lg bg-zinc-800 text-white px-3 py-2 border border-zinc-700 outline-none"
+            />
+
+            <select
+              value={roomType}
+              onChange={(e) => setRoomType(e.target.value)}
+              className="w-full rounded-lg bg-zinc-800 text-white px-3 py-2 border border-zinc-700"
+            >
+              <option value="">Select Type</option>
+              <option value="public">Public</option>
+              <option value="private">Private</option>
+            </select>
+
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg py-2 text-white"
+            >
+              + Create Room
+            </button>
+          </form>
+        </div>
+
+        {/* Rooms */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
+            Rooms
+          </h2>
+
+          <div className="space-y-2">
+            {allRooms.map((room: any) => (
+              <button
+                key={room._id}
+                onClick={() => setSelectedRoom(room)}
+                className={`w-full text-left px-4 py-3 rounded-xl transition ${selectedRoom?._id === room._id
+                  ? "bg-blue-600 text-white"
+                  : "bg-zinc-800 text-white hover:bg-zinc-700"
+                  }`}
+              >
+                <div className="font-medium">
+                  # {room.name}
+                </div>
+
+                <div className="text-xs opacity-70">
+                  {room.type}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Create Room */}
-      <div className="p-4 border-b border-zinc-800">
-        <h2 className="text-white font-semibold mb-3">
-          Create Room
-        </h2>
+      {/* CHAT AREA */}
+      <div className="flex-1 bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
 
+        {/* Header */}
+        <div className="border-b px-6 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-semibold text-black">
+              {selectedRoom?.name || "Select Room"}
+            </h1>
+
+            <p className="text-sm text-zinc-500">
+              {selectedRoom?.type || "Room"}
+            </p>
+          </div>
+
+          <div className="text-sm text-zinc-500">
+            {members.length} Members
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 bg-zinc-50 space-y-4">
+
+          {messages.map((message) => (
+            <div
+              key={message._id}
+              className={`flex ${message.sender === user?.id
+                ? "justify-end"
+                : "justify-start"
+                }`}
+            >
+              <div
+                className={`max-w-md rounded-2xl px-4 py-3 shadow-sm ${message.sender === user?.id
+                  ? "bg-blue-600 text-white"
+                  : "bg-white border"
+                  }`}
+              >
+                <p>{message.content}</p>
+
+                <div className="mt-2 text-xs opacity-70 flex justify-end">
+                  {message.status}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Message Input */}
         <form
-          onSubmit={handleRoomCreation}
-          className="space-y-3"
+          onSubmit={sendMessage}
+          className="border-t bg-white p-4 flex gap-3"
         >
+        {typingUsers.length > 0 && (
+  <div className="px-6 py-2 text-sm italic text-zinc-500">
+    {typingUsers.length === 1
+      ? `${typingUsers[0]} is typing...`
+      : `${typingUsers.join(", ")} are typing...`}
+  </div>
+)}
           <input
             type="text"
-            placeholder="Room Name"
-            value={roomName}
-            onChange={(e) => setRoomName(e.target.value)}
-            className="w-full rounded-lg bg-zinc-800 text-white px-3 py-2 outline-none border border-zinc-700"
+            value={input}
+            onChange={handelInputChange}
+            placeholder={`Message #${selectedRoom?.name || "room"}`}
+            className="flex-1 border rounded-xl px-4 py-3 outline-none text-black"
           />
-
-          <select
-            value={roomType}
-            onChange={(e) => setRoomType(e.target.value)}
-            className="w-full rounded-lg bg-zinc-800 text-white px-3 py-2 border border-zinc-700"
-          >
-            <option value="">Select Type</option>
-            <option value="public">Public</option>
-            <option value="private">Private</option>
-          </select>
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 transition rounded-lg py-2 text-white font-medium"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl"
           >
-            + Create Room
+            Send
           </button>
         </form>
       </div>
 
-      {/* Rooms */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
-          Rooms
-        </h2>
+      {/* RIGHT SIDEBAR */}
+      <div className="w-72 h-full bg-zinc-900 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden">
 
-        <div className="space-y-2">
-          {allRooms.map((room: any) => (
-            <button
-              key={room._id}
-              onClick={()=>setSelectedRoom(room)}
-              className={`w-full text-left px-3 py-3 rounded-lg transition ${
-  selectedRoom?._id === room._id
-    ? "bg-blue-600 text-white"
-    : "bg-zinc-800 text-white hover:bg-zinc-700"
-}`}
-            >
-              # {room.name}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+        <div className="p-4 border-b border-zinc-800">
+          <h2 className="text-lg font-semibold text-white">
+            Members
+          </h2>
 
-    {/* Chat Area */}
-    <div className="flex-1 bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
-
-      {/* Chat Header */}
-      <div className="border-b px-6 py-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-semibold text-black">
-              {selectedRoom?.name || "Select Room"}
-          </h1>
-
-          <p className="text-sm text-zinc-500">
-            Real-time chat room
+          <p className="text-zinc-400 text-sm">
+            {members.length} members
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
 
-          <span className="text-sm text-zinc-600">
-            Online
-          </span>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-zinc-50">
-
-        {messages.map((message) => (
-          <div
-            key={message._id}
-            className={`flex ${
-              message.sender === user?.id
-                ? "justify-end"
-                : "justify-start"
-            }`}
-          >
+          {members.map((member) => (
             <div
-              className={`max-w-md px-4 py-3 rounded-2xl shadow-sm ${
-                message.sender === user?.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-white border"
-              }`}
+              key={member._id}
+              className="bg-zinc-800 rounded-xl px-3 py-3 flex items-center justify-between"
             >
-              <p>{message.content}</p>
+              <div>
+                <p className="text-white font-medium">
+                  {member.username}
+                </p>
 
-              <div className="mt-2 text-xs opacity-70 flex justify-end">
-                {message.status}
+                <p className="text-xs text-zinc-400">
+                  {member.email}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-2 h-2 rounded-full ${member.status === "online"
+                    ? "bg-green-500"
+                    : "bg-zinc-500"
+                    }`}
+                />
+
+                <span className="text-xs text-zinc-400">
+                  {member.status}
+                </span>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+
+          {members.length === 0 && (
+            <div className="text-center text-zinc-500 py-8">
+              No members found
+            </div>
+          )}
+
+          <button onClick={() => { setShowAddMember(true) }}>
+            Add member +
+          </button>
+
+          {showAddMember && (
+            <form
+              onSubmit={handleAddMember}
+              className="mt-3 space-y-2"
+            >
+              <input
+                type="email"
+                placeholder="Enter email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg"
+              />
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 bg-green-600 text-white py-2 rounded-lg"
+                >
+                  Add
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddMember(false)}
+                  className="flex-1 bg-red-600 text-white py-2 rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+        </div>
+
       </div>
 
-      {/* Input */}
-      <form
-        onSubmit={sendMessage}
-        className="border-t bg-white p-4 flex gap-3"
-      >
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..."
-          className="flex-1 border rounded-xl px-4 py-3 outline-none text-black focus:ring-2 focus:ring-blue-500"
-        />
-
-        <button
-          type="submit"
-          className="bg-blue-600 hover:bg-blue-700 transition text-white px-6 rounded-xl"
-        >
-          Send
-        </button>
-      </form>
-    </div>
-  </main>
-);
+    </main>
+  );
 }

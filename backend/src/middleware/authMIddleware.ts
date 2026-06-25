@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from "express"
 import jwt from 'jsonwebtoken'
 export const authMiddleware = async(req:Request , res:Response , next:NextFunction)=>{
-    console.log(req.cookies.token)
     const token = req.cookies.token
 
     if(!token){

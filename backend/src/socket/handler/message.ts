@@ -54,6 +54,19 @@ export const registerMessageHandlers = (socket: Socket, io: Server) => {
     });
   })
 
+  socket.on("typing",(data)=>{
+    socket.to(data.roomId).emit("typing-status",{
+       username: data.username
+    })
+    
+  })
+  
+  socket.on("stop-typing", (data) => {
+  socket.to(data.roomId).emit("stop-typing-status", {
+    username: data.username,
+  });
+});
+
 
 
 }

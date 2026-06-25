@@ -10,7 +10,6 @@ export const registerRoomHandler = (socket: Socket) => {
             }
          }
            socket.join(roomId)
-           console.log(socket.rooms)
         const historyMessages = await MessageModel.find({
             roomId
         })
