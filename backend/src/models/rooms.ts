@@ -12,8 +12,19 @@ const RoomSchema = new Schema({
         required: true
     },
     members:[{
-        type: Schema.Types.ObjectId,
-        ref: 'User'
+        user:{
+          type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+        },
+
+       role:{
+        type: String,
+        enum: ['admin','member'],
+        required: true
+       }
+
+        
     }
     ],
     createdBy:{

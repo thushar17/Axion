@@ -25,7 +25,10 @@ RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) =
       name,
       type,
       createdBy,
-      members: [user.id]
+      members: [{
+        user: user.id,
+        role: 'admin'
+      }]
     })
     return res.status(200).json({
       success: true,
@@ -72,7 +75,10 @@ RoomRouter.post('/add-member', authMiddleware,async(req: Request, res: Response)
       },
 
         {$addToSet:{
-          members:userId
+          members:{
+            user: userId,
+            role: "member"
+          }
         }},
         {returnDocument: 'after'}
       )
@@ -95,7 +101,8 @@ RoomRouter.post('/add-member', authMiddleware,async(req: Request, res: Response)
 RoomRouter.get('/:roomId/members',authMiddleware,async (req:Request, res:Response)=>{
     try {
       const {roomId} = req.params;
-      const room = await RoomModel.findById(roomId).populate("members","email, username and status")
+      const room = await RoomModel.findById(roomId).populate("members.user","email , status and username")
+      
       
       if (!room) {
         return res.status(404).json({
@@ -106,7 +113,8 @@ RoomRouter.get('/:roomId/members',authMiddleware,async (req:Request, res:Respons
 
       res.status(200).json({
         success: true,
-        members: room.members,
+        // members: room.members,
+        members: room.members
       });
     } catch (error) {
       console.error(error)

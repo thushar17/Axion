@@ -215,7 +215,7 @@ export default function ChatPage() {
       const response = await axios.get(`http://localhost:8000/room/${selectedRoom._id}/members`, {
         withCredentials: true
       })
-
+      
       setMembers(response.data.members)
     } catch (error) {
       console.error(error)
@@ -284,8 +284,8 @@ export default function ChatPage() {
   }
 
   useEffect(() => {
-    console.log("heelo", unreadMessageCount)
-  }, [unreadMessageCount])
+    console.log("members hello hi",members)
+  }, [members])
 
   if (loading) {
     return (
@@ -478,17 +478,23 @@ export default function ChatPage() {
 
           {members.map((member) => (
             <div
-              key={member._id}
+              key={member.user._id}
               className="bg-zinc-800 rounded-xl px-3 py-3 flex items-center justify-between"
             >
               <div>
+      
                 <p className="text-white font-medium">
-                  {member.username}
+                  {member.user.username}
                 </p>
-
+              <div className="flex justify-between items-center">
+ <p className="text-xs text-zinc-400">
+                  {member.user.email}
+                </p>
                 <p className="text-xs text-zinc-400">
-                  {member.email}
+                  {member.role}
                 </p>
+              </div>
+               
               </div>
 
               <div className="flex items-center gap-2">
