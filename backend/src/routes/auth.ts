@@ -109,8 +109,13 @@ AuthRouter.post("/login", async (req: Request, res: Response) => {
     })
 })
 
-AuthRouter.get("/me", authMiddleware, async (req: Request, res: Response) => {
-    const user = (req as any).user;
+AuthRouter.get("/me", authMiddleware, async (req:Request, res: Response) => {
+    const user = req.user;
+    if (!user) {
+    return res.status(401).json({
+        message: "Unauthorized"
+    });
+}
     const dbUser = await UserModel.findById(user.id);
     if (!dbUser) {
         return res.status(404).json({ success: false, message: "User not found" });

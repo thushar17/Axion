@@ -8,7 +8,11 @@ const RoomRouter = Router()
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
-    const user = (req as any).user;
+    const user = req.user;
+     if (!user) {
+    return res.status(401).json({
+        message: "Unauthorized"
+    })}; 
     const createdBy = user.id
     if (!name || !type || !createdBy) {
       return res.status(400).json({
@@ -21,7 +25,7 @@ RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) =
       name,
       type,
       createdBy,
-      members: user.id
+      members: [user.id]
     })
     return res.status(200).json({
       success: true,

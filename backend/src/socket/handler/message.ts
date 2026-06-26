@@ -1,9 +1,10 @@
 import type { Socket, Server } from "socket.io";
 import { MessageModel } from "../../models/messages.js";
+import type { AuthSocket } from "../../types/index.js";
 
-export const registerMessageHandlers = (socket: Socket, io: Server) => {
+export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
   socket.on("send-message", async (data, callback) => {
-    const userId = (socket as any).user.id;
+    const userId = socket.user.id;
     const message = await MessageModel.create({
       roomId: data.roomId,
       sender: userId,
@@ -31,7 +32,7 @@ export const registerMessageHandlers = (socket: Socket, io: Server) => {
     }
 
     console.log("updated message", message)
-    io.to(message.roomId).emit("message-status-updated", {
+    io.to(message.roomId.toString()).emit("message-status-updated", {
       messageId: message._id,
       status: "delivered"
     });

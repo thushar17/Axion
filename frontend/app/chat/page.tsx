@@ -28,7 +28,6 @@ export default function ChatPage() {
   const [typingUsers, setTypingUsers] = useState<any[]>([])
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState<{ [roomId: string]: number }>({})
-  let unreadMessages = 0;
   // verifying user auth
   useEffect(() => {
     const checkAuth = async () => {

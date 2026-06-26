@@ -1,12 +1,14 @@
-import { Schema, model } from 'mongoose'
+import mongoose, { Schema, model, mongo } from 'mongoose'
 
 const MessageSchema = new Schema({
     roomId: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Room',
         required: true
     },
     sender: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
     content: {

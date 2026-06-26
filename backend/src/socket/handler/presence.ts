@@ -1,10 +1,11 @@
 import { UserModel } from "../../models/user.js";
 import { Socket } from "socket.io";
+import type { AuthSocket } from "../../types/index.js";
 
 const onlineUser = new Map<string, number>()
 
-export const handelOnlineUsers = async (socket: Socket) => {
-  const userId = (socket as any).user.id;
+export const handelOnlineUsers = async (socket: AuthSocket) => {
+  const userId = socket.user.id;
 
   const currentCount = onlineUser.get(userId) ?? 0;
   const newCount = currentCount + 1;
