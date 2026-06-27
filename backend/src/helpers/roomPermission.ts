@@ -8,7 +8,6 @@ export const checkForUserRole= async (roomId: any,userId: string)=>{
     $elemMatch: { user: new Types.ObjectId(userId.toString()) }
   }
 }, { 'members.$': 1 });
-
 return room?.members[0]?.role ?? null;
    } catch (error) {
     console.log(error)

@@ -7,6 +7,7 @@ import { checkForUserRole } from '../helpers/roomPermission.js';
 import { Types } from 'mongoose';
 import { getIO } from '../socket/index.js';
 const RoomRouter = Router()
+import { generateInviteCode } from '../helpers/generateInviteCode.js';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
@@ -199,5 +200,52 @@ RoomRouter.delete('/remove-member',authMiddleware, async (req:Request, res: Resp
       })
     }
 })
+
+// genreate invite link
+RoomRouter.post("/generate-invite", authMiddleware , async (req: Request, res: Response)=>{
+    try {
+      const user = req.user
+      if(!user){
+        return res.status(400).json({
+          success: false,
+          message: 'Unauthorized'
+        })
+      }
+      const userId = user.id
+      const {roomId} = req.body
+      
+      const isAdmin = await checkForUserRole(roomId, userId)
+      
+      if (isAdmin !== 'admin') {
+         return res.status(403).json({ success: false, message: "Only admins can generate invite links" })
+      }
+
+      const inviteCode = generateInviteCode();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 1); 
+      const room = await RoomModel.findOneAndUpdate(
+        { _id: roomId },
+        { 
+           inviteLink: inviteCode,
+           inviteLinExpiresAt: expiresAt 
+        },
+        { new: true }
+      );
+
+      if (!room) {
+        return res.status(404).json({ success: false, message: "Room not found" });
+      }
+
+      res.status(200).json({
+        success: true,
+        inviteLink: `http://localhost:3000/invite/${room.inviteLink}`
+      })
+      
+
+    } catch (error) {
+      console.error(error)
+      res.status(500).json({ success: false, message: "Internal server error" })
+    }
+});
 
 export default RoomRouter;

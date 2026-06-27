@@ -30,6 +30,13 @@ const RoomSchema = new Schema({
     createdBy:{
         type: String,
         required: true
+    },
+    inviteLink:{
+        type: String,
+        unique: true
+    },
+    inviteLinExpiresAt:{
+        type: Date
     }
 },
 {
