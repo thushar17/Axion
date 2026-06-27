@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, FormEvent } from "react";
 import { socket } from "@/src/lib/socket";
 
 export default function ChatPage() {
@@ -116,6 +116,28 @@ export default function ChatPage() {
       );
     });
 
+    socket.on("member-removed", (data) => {
+      if (data.memberId === user.id) {
+        setAllRooms((prev) => {
+          const updatedRooms = prev.filter((room) => room._id !== data.roomId);
+
+          if (selectedRoomRef.current?._id === data.roomId) {
+            setSelectedRoom(updatedRooms[0] ?? null);
+            setMessages([]);
+            setMembers([]);
+          }
+
+          return updatedRooms;
+        });
+
+        return;
+      }
+
+      setMembers((prev) =>
+        prev.filter((member) => member.user._id !== data.memberId)
+      );
+    });
+
     return () => {
       socket.off("connect");
       socket.off("connect_error");
@@ -126,6 +148,7 @@ export default function ChatPage() {
       socket.off("typing-status")
       socket.off("stop-typing-status");
       socket.off("typing-status");
+      socket.off("member-removed");
 
       socket.disconnect();
     };
@@ -135,7 +158,7 @@ export default function ChatPage() {
     e.preventDefault();
 
     if (!input.trim() || !selectedRoom) return;
-
+     
     socket.emit(
       "send-message",
       {
@@ -158,7 +181,9 @@ export default function ChatPage() {
   // fetching all rooms
   const fetchRooms = async () => {
     try {
-      const response = await axios.get("http://localhost:8000/room/getRooms")
+      const response = await axios.get("http://localhost:8000/room/getRooms", {
+        withCredentials: true
+      })
       if (response.status !== 200) {
         return alert(
           'faliled to fetch rooms'
@@ -283,9 +308,31 @@ export default function ChatPage() {
     }, 1000);
   }
 
-  useEffect(() => {
-    console.log("members hello hi",members)
-  }, [members])
+ // remove member
+ const handelRemoveMember = async(memberId: string) =>{
+      try {
+        const response = await axios.delete("http://localhost:8000/room/remove-member",
+          {
+            data:{
+               memberId,
+            roomId: selectedRoom._id
+            },
+            withCredentials: true
+          }
+           
+        )
+        console.log(response)
+      } catch (error) {
+        console.log(error) 
+      }
+ }
+
+ // is Admin
+  const isAdmin = members.some(
+  (member) =>
+    member.user._id === user.id &&
+    member.role === "admin"
+);
 
   if (loading) {
     return (
@@ -486,7 +533,7 @@ export default function ChatPage() {
                 <p className="text-white font-medium">
                   {member.user.username}
                 </p>
-              <div className="flex justify-between items-center">
+              <div className="flex gap-10">
  <p className="text-xs text-zinc-400">
                   {member.user.email}
                 </p>
@@ -494,12 +541,16 @@ export default function ChatPage() {
                   {member.role}
                 </p>
               </div>
-               
+               { isAdmin && member.user._id !== user.id &&(
+                <button onClick={()=>handelRemoveMember(member.user._id)}>
+                  Remove
+                </button>
+               )}
               </div>
 
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-2 h-2 rounded-full ${member.status === "online"
+                  className={`w-2 h-2 rounded-full ${member.user.status === "online"
                     ? "bg-green-500"
                     : "bg-zinc-500"
                     }`}

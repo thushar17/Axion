@@ -3,8 +3,10 @@ import type { Request, Response } from 'express';
 import { RoomModel } from '../models/rooms.js';
 import { authMiddleware } from '../middleware/authMIddleware.js';
 import { UserModel } from '../models/user.js';
+import { checkForUserRole } from '../helpers/roomPermission.js';
+import { Types } from 'mongoose';
+import { getIO } from '../socket/index.js';
 const RoomRouter = Router()
-
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
@@ -46,9 +48,17 @@ RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) =
 })
 
 
-RoomRouter.get('/getRooms', async (req: Request, res: Response) => {
+RoomRouter.get('/getRooms', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const rooms = await RoomModel.find({});
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const rooms = await RoomModel.find({
+      "members.user": user.id
+    });
+    
     res.json({
       success: true,
       data: rooms
@@ -67,11 +77,17 @@ RoomRouter.post('/add-member', authMiddleware,async(req: Request, res: Response)
     try {
       const {email,roomId} = req.body
       const userDetail = await UserModel.findOne({email: email})
-      const userId = (userDetail as any)._id
+      if (!userDetail) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+      const userId = userDetail._id
       
-      const room = await RoomModel.findByIdAndUpdate({
+      const room = await RoomModel.findOneAndUpdate({
         _id: roomId,
-        members: {$ne: userId}
+        'members.user': {$ne: userId}
       },
 
         {$addToSet:{
@@ -124,6 +140,64 @@ RoomRouter.get('/:roomId/members',authMiddleware,async (req:Request, res:Respons
       })
     }
     
+})
+
+RoomRouter.delete('/remove-member',authMiddleware, async (req:Request, res: Response)=>{
+    try {
+      const{ roomId, memberId} = req.body;
+      const user = req.user;
+     if (!user) {
+    return res.status(401).json({
+        message: "Unauthorized"
+    })}; 
+      const role = await checkForUserRole(roomId, user.id)
+      if(!role || role!== 'admin'){
+        return res.status(403).json({
+          success:false,
+          message: "Only admins can Remove members"
+        })
+      }
+      if(memberId === user.id ){
+         return res.status(400).json({
+          success: false,
+          message: 'You cannot remove yourself'
+         })
+        }
+     // removing member 
+        const removedMember = await RoomModel.findOneAndUpdate(
+          {
+            _id: roomId,
+            'members.user': new Types.ObjectId(memberId)
+          },{
+            $pull:{
+                members: {user: new Types.ObjectId(memberId)} 
+            }
+          },{
+            new: true
+          }
+        )
+
+        const io = getIO();
+        io.to(roomId).emit('member-removed',{
+          roomId,
+          memberId
+        })
+
+        
+        res.status(200).json({
+          success: true,
+          message:'member removed sucessfully',
+          removedMember
+        })
+      
+      
+    } catch (error) {
+      console.error(error)
+      res.status(500).json({
+        success: false,
+        messsage: 'Server error'
+      })
+    }
 })
 
 export default RoomRouter;

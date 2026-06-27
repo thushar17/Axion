@@ -1,10 +1,23 @@
 import type { Socket, Server } from "socket.io";
 import { MessageModel } from "../../models/messages.js";
 import type { AuthSocket } from "../../types/index.js";
-
+import { RoomModel } from "../../models/rooms.js";
 export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
   socket.on("send-message", async (data, callback) => {
-    const userId = socket.user.id;
+    
+    const userId = socket.user.id; 
+  
+    const room = await RoomModel.findById({_id: data.roomId})
+
+    const isMember = room?.members.some(
+      member => member.user.toString()== userId
+    )
+    if (!isMember) {
+        return callback({
+          success: false,
+          message: 'You are no longer member of this room'
+        })
+    }
     const message = await MessageModel.create({
       roomId: data.roomId,
       sender: userId,

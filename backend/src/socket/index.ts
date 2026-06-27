@@ -4,12 +4,12 @@ import { handelOnlineUsers } from "./handler/presence.js";
 import { socketAuthMiddleware } from "./middleware/auth.js";
 import { registerMessageHandlers } from "./handler/message.js";
 import { registerRoomHandler } from "./handler/room.js";
-
+let io: Server;
 
 export const initializedSocket = (server: http.Server) => {
   console.log("Socket server initialized");
 
-  const io = new Server(server, {
+   io = new Server(server, {
     cors: {
       origin: "http://localhost:3000",
       credentials: true,
@@ -35,6 +35,15 @@ export const initializedSocket = (server: http.Server) => {
       console.log(`Socket disconnected: ${socket.id}`);
     });
   });
+
+ 
+  return io;
+};
+
+export const getIO = () => {
+  if (!io) {
+    throw new Error("Socket.IO has not been initialized");
+  }
 
   return io;
 };
