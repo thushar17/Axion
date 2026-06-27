@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { response, Router } from 'express'
 import type { Request, Response } from 'express';
 import { RoomModel } from '../models/rooms.js';
 import { authMiddleware } from '../middleware/authMIddleware.js';
@@ -8,6 +8,7 @@ import { Types } from 'mongoose';
 import { getIO } from '../socket/index.js';
 const RoomRouter = Router()
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
+import { success } from 'zod';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
@@ -142,7 +143,7 @@ RoomRouter.get('/:roomId/members',authMiddleware,async (req:Request, res:Respons
     }
     
 })
-
+// remove member 
 RoomRouter.delete('/remove-member',authMiddleware, async (req:Request, res: Response)=>{
     try {
       const{ roomId, memberId} = req.body;
@@ -247,5 +248,59 @@ RoomRouter.post("/generate-invite", authMiddleware , async (req: Request, res: R
       res.status(500).json({ success: false, message: "Internal server error" })
     }
 });
+
+// join room by invite link
+
+ RoomRouter.post('/join-invite',authMiddleware, async (req: Request, res: Response)=>{
+       try {
+         if(!req.user){
+            return res.json({
+              success: false ,
+              message: 'Unauthorized'
+            })
+          }
+          const userId = req.user.id
+          const {inviteCode} = req.body;
+          console.log(inviteCode, "helo")
+          const room = await RoomModel.findOne({inviteLink: inviteCode});
+          if(!room){
+            return res.json({
+              success: false,
+              message: 'room not found'
+            })
+          }
+          const alreadyMember = room.members.some(member =>
+    member.user.equals(userId)
+);
+
+if (alreadyMember) {
+    return res.status(400).json({
+        success: false,
+        message: "Already a member."
+    });
+}
+
+  room.members.push({
+     user: 'userId',
+     role: 'member'
+  })
+
+  await room.save()
+
+return res.status(200).json({
+    success: true,
+    message: "Joined room successfully",
+    room
+});
+      
+          
+       } catch (error) {
+         console.error(error)
+         res.json({
+          success: false,
+          message: 'Server Error'
+         })
+       }
+ })
 
 export default RoomRouter;

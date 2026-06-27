@@ -28,6 +28,7 @@ export default function ChatPage() {
   const [typingUsers, setTypingUsers] = useState<any[]>([])
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState<{ [roomId: string]: number }>({})
+  const [inviteLink , setInviteLink] = useState("")
   // verifying user auth
   useEffect(() => {
     const checkAuth = async () => {
@@ -321,7 +322,9 @@ export default function ChatPage() {
           }
            
         )
-        console.log(response)
+       if(response.data.success){
+        alert('member removed ')
+       }
       } catch (error) {
         console.log(error) 
       }
@@ -333,6 +336,27 @@ export default function ChatPage() {
     member.user._id === user.id &&
     member.role === "admin"
 );
+
+// generate invite link 
+  const handelLinkGeneration =async ()=>{
+       try {
+          const response = await axios.post("http://localhost:8000/room/generate-invite",{
+            roomId: selectedRoom._id
+          },{
+            withCredentials: true
+          }
+          )
+
+          if(!response.data.success){
+             alert(response.data.message)
+          }
+
+           setInviteLink(response.data.inviteLink)
+          
+       } catch (error) {
+         console.log(error)
+       }
+  }
 
   if (loading) {
     return (
@@ -604,6 +628,15 @@ export default function ChatPage() {
               </div>
             </form>
           )}
+           
+           <button onClick={()=> handelLinkGeneration()}>
+             Invite Link
+           </button>
+           {inviteLink &&(
+            <div>
+               {inviteLink}
+            </div>
+           )}
 
         </div>
 
