@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef, FormEvent } from "react";
 import { socket } from "@/src/lib/socket";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function ChatPage() {
   const router = useRouter();
 
@@ -29,12 +31,13 @@ export default function ChatPage() {
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState<{ [roomId: string]: number }>({})
   const [inviteLink , setInviteLink] = useState("")
+  const [replyingTo, setReplyingTo] = useState<any>(null)
   // verifying user auth
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8000/auth/me",
+          `${API_URL}/auth/me`,
           {
             withCredentials: true,
           }
@@ -140,16 +143,18 @@ export default function ChatPage() {
     });
 
     socket.on("room-deleted",(data)=>{
-      console.log(data)
        setAllRooms((prev)=>{
+        const roomId = selectedRoomRef.current?._id
           const updateRoom = prev.filter((room)=> room._id!== data.roomId)
-          if(selectedRoomRef.current?._id === data.roomId){
+          if(roomId === data.roomId){
             setSelectedRoom(updateRoom[0]|| null)
             setMembers([])
             setMembers([])
           }
           return updateRoom
+         
        })
+       
        return;
     })
 
@@ -164,6 +169,7 @@ export default function ChatPage() {
       socket.off("stop-typing-status");
       socket.off("typing-status");
       socket.off("member-removed");
+      socket.off("room-deleted")
 
       socket.disconnect();
     };
@@ -179,6 +185,7 @@ export default function ChatPage() {
       {
         roomId: selectedRoom._id,
         content: input,
+        replyTo: replyingTo?._id
       },
       (response: any) => {
         console.log("ACK:", response);
@@ -196,7 +203,7 @@ export default function ChatPage() {
   // fetching all rooms
   const fetchRooms = async () => {
     try {
-      const response = await axios.get("http://localhost:8000/room/getRooms", {
+      const response = await axios.get(`${API_URL}/room/getRooms`, {
         withCredentials: true
       })
       if (response.status !== 200) {
@@ -223,7 +230,7 @@ export default function ChatPage() {
     e.preventDefault();
 
     try {
-      const response = await axios.post("http://localhost:8000/room/create",
+      const response = await axios.post(`${API_URL}/room/create`,
         {
           name: roomName,
           type: roomType
@@ -252,7 +259,7 @@ export default function ChatPage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/room/${selectedRoom._id}/members`, {
+      const response = await axios.get(`${API_URL}/room/${selectedRoom._id}/members`, {
         withCredentials: true
       })
       
@@ -282,7 +289,7 @@ export default function ChatPage() {
   const handleAddMember = async () => {
     if (!selectedRoom) return;
     try {
-      const response = await axios.post("http://localhost:8000/room/add-member", {
+      const response = await axios.post(`${API_URL}/room/add-member`, {
         email,
         roomId: selectedRoom._id
       }, {
@@ -326,7 +333,7 @@ export default function ChatPage() {
  // remove member
  const handelRemoveMember = async(memberId: string) =>{
       try {
-        const response = await axios.delete("http://localhost:8000/room/remove-member",
+        const response = await axios.delete(`${API_URL}/room/remove-member`,
           {
             data:{
                memberId,
@@ -354,7 +361,7 @@ export default function ChatPage() {
 // generate invite link 
   const handelLinkGeneration =async ()=>{
        try {
-          const response = await axios.post("http://localhost:8000/room/generate-invite",{
+          const response = await axios.post(`${API_URL}/room/generate-invite`,{
             roomId: selectedRoom._id
           },{
             withCredentials: true
@@ -374,7 +381,7 @@ export default function ChatPage() {
 // delete room 
     const handelRoomDelete=async(roomId:string)=>{
       try {
-        const response = await axios.delete("http://localhost:8000/room/delete",{
+        const response = await axios.delete(`${API_URL}/room/delete`,{
           data:{
             roomId
           },
@@ -511,57 +518,98 @@ export default function ChatPage() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-4 bg-zinc-50 space-y-4">
 
-          {messages.map((message) => (
+          {messages.map((message) => {
+            const isOwnMessage = (message.sender?._id || message.sender) === user?.id;
+            return (
             <div
               key={message._id}
-              className={`flex ${message.sender === user?.id
+              className={`flex group ${isOwnMessage
                 ? "justify-end"
                 : "justify-start"
                 }`}
             >
               <div
-                className={`max-w-md rounded-2xl px-4 py-3 shadow-sm ${message.sender === user?.id
+                className={`max-w-md rounded-2xl px-4 py-3 shadow-sm flex flex-col gap-1 ${isOwnMessage
                   ? "bg-blue-600 text-white"
-                  : "bg-white border"
+                  : "bg-white border border-zinc-200 text-black"
                   }`}
               >
-                <p>{message.content}</p>
+                {/* Reply context */}
+                {message.replyTo && (
+                  <div className={`text-xs p-2 rounded bg-opacity-20 border-l-2 mb-1 truncate ${
+                    isOwnMessage 
+                      ? 'bg-black border-white text-blue-100' 
+                      : 'bg-zinc-200 border-blue-500 text-zinc-600'
+                  }`}>
+                    {typeof message.replyTo === 'object' 
+                      ? message.replyTo.content 
+                      : (messages.find(m => m._id === message.replyTo)?.content || 'Replied to a message')}
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-start gap-3">
+                  <p className="break-words">{message.content}</p>
+                  <button 
+                    onClick={() => setReplyingTo(message)}
+                    className={`text-xs shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${
+                      isOwnMessage ? "text-blue-200 hover:text-white" : "text-zinc-400 hover:text-blue-600"
+                    }`}
+                  >
+                     Reply
+                  </button>
+                </div>
 
-                <div className="mt-2 text-xs opacity-70 flex justify-end">
+                <div className="mt-1 text-[10px] opacity-70 flex justify-end">
                   {message.status}
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
 
         {/* Message Input */}
-        <form
-          onSubmit={sendMessage}
-          className="border-t bg-white p-4 flex gap-3"
-        >
-          {typingUsers.length > 0 && (
-            <div className="px-6 py-2 text-sm italic text-zinc-500">
-              {typingUsers.length === 1
-                ? `${typingUsers[0]} is typing...`
-                : `${typingUsers.join(", ")} are typing...`}
+        <div className="border-t bg-white flex flex-col">
+          {replyingTo && (
+            <div className="bg-zinc-100 px-4 py-2 border-b border-zinc-200 flex justify-between items-center text-sm text-zinc-600">
+              <div className="flex flex-col">
+                <span className="font-semibold text-blue-600">Replying to</span>
+                <span className="text-zinc-800 truncate max-w-md">{replyingTo.content}</span>
+              </div>
+              <button
+                onClick={() => setReplyingTo(null)}
+                className="text-zinc-400 hover:text-zinc-600 p-1"
+              >
+                ✕
+              </button>
             </div>
           )}
-          <input
-            type="text"
-            value={input}
-            onChange={handelInputChange}
-            placeholder={`Message #${selectedRoom?.name || "room"}`}
-            className="flex-1 border rounded-xl px-4 py-3 outline-none text-black"
-          />
-
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl"
+          <form
+            onSubmit={sendMessage}
+            className="p-4 flex gap-3"
           >
-            Send
-          </button>
-        </form>
+            {typingUsers.length > 0 && (
+              <div className="absolute bottom-20 px-6 py-2 text-sm italic text-zinc-500">
+                {typingUsers.length === 1
+                  ? `${typingUsers[0]} is typing...`
+                  : `${typingUsers.join(", ")} are typing...`}
+              </div>
+            )}
+            <input
+              type="text"
+              value={input}
+              onChange={handelInputChange}
+              placeholder={`Message #${selectedRoom?.name || "room"}`}
+              className="flex-1 border border-zinc-200 rounded-xl px-4 py-3 outline-none text-black bg-zinc-50 focus:bg-white focus:border-blue-500 transition-colors"
+            />
+
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl font-medium transition-colors"
+            >
+              Send
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* RIGHT SIDEBAR */}

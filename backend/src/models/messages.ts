@@ -23,6 +23,11 @@ const MessageSchema = new Schema({
     createdAt: {
         type: Date,
         default: Date.now
+    },
+    replyTo:{
+        type: Schema.Types.ObjectId,
+        ref: 'Message',
+        default: null
     }
 })
 

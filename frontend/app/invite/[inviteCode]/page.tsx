@@ -23,7 +23,8 @@ export default function InvitePage() {
             console.log(params.inviteCode)
 
             try {
-                const response = await axios.post("http://localhost:8000/room/join-invite", {
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                const response = await axios.post(`${API_URL}/room/join-invite`, {
                     inviteCode: params.inviteCode
                 }, {
                     withCredentials: true

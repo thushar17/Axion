@@ -18,16 +18,42 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
           message: 'You are no longer member of this room'
         })
     }
-    const message = await MessageModel.create({
+
+    let repliedMessage = null;
+    if(data.replyTo){
+       repliedMessage = await MessageModel.findById(data.replyTo)
+
+       if (!repliedMessage) {
+        return callback({
+            success: false,
+            message: "Original message not found"
+        });
+    }
+    }
+    
+    const Dbmessage = await MessageModel.create({
       roomId: data.roomId,
       sender: userId,
       content: data.content,
+      replyTo: data.replyTo || null
     });
     callback({
       success: true,
-      messageId: message._id
+      messageId: Dbmessage._id
     })
-
+    const message=  await Dbmessage.populate([
+        {
+        path: "sender",
+        select: "username email"
+    },
+    {
+        path: "replyTo",
+        populate: {
+            path: "sender",
+            select: "username"
+        }
+    }
+      ])
     io.to(data.roomId).emit("new-message", message);
   });
   socket.on("message-delivered", async ({ messageId }) => {
