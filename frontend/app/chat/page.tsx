@@ -139,6 +139,20 @@ export default function ChatPage() {
       );
     });
 
+    socket.on("room-deleted",(data)=>{
+      console.log(data)
+       setAllRooms((prev)=>{
+          const updateRoom = prev.filter((room)=> room._id!== data.roomId)
+          if(selectedRoomRef.current?._id === data.roomId){
+            setSelectedRoom(updateRoom[0]|| null)
+            setMembers([])
+            setMembers([])
+          }
+          return updateRoom
+       })
+       return;
+    })
+
     return () => {
       socket.off("connect");
       socket.off("connect_error");
@@ -357,6 +371,24 @@ export default function ChatPage() {
          console.log(error)
        }
   }
+// delete room 
+    const handelRoomDelete=async(roomId:string)=>{
+      try {
+        const response = await axios.delete("http://localhost:8000/room/delete",{
+          data:{
+            roomId
+          },
+          withCredentials: true
+        }
+      )
+        if(!response.data.success){
+          return alert(response.data.message)
+        }
+        console.log(response)
+      } catch (error) {
+        console.error(error)
+      }
+    }   
 
   if (loading) {
     return (
@@ -637,6 +669,15 @@ export default function ChatPage() {
                {inviteLink}
             </div>
            )}
+
+           <div>
+            {isAdmin && (
+              <button onClick={()=> handelRoomDelete(selectedRoom._id)}>
+              Delete Room
+            </button>
+            )}
+            
+           </div>
 
         </div>
 

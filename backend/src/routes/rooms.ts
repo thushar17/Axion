@@ -12,6 +12,7 @@ import { success } from 'zod';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
+    console.log("lhello how are you", name, type)
     const user = req.user;
      if (!user) {
     return res.status(401).json({
@@ -271,7 +272,6 @@ RoomRouter.post("/generate-invite", authMiddleware , async (req: Request, res: R
           const alreadyMember = room.members.some(member =>
     member.user.equals(userId)
 );
-  console.log(alreadyMember)
 if (alreadyMember) {
     return res.status(400).json({
         success: false,
@@ -300,6 +300,48 @@ return res.status(200).json({
           message: 'Server Error'
          })
        }
+ })
+
+ // delete room 
+ RoomRouter.delete("/delete",authMiddleware,async (req : Request, res: Response)=>{
+    try {
+      if(!req.user){
+        return res.status(401).json({
+           success: false,
+           message: "User not authorized"
+        })
+      }
+      const userId = req.user.id 
+      const {roomId} = req.body
+      const admin = await checkForUserRole(roomId, userId)
+     if(admin !== "admin"){
+      return res.status(400).json({
+         success: false,
+         message: 'Only admins can delete rooms'
+      })
+     }
+
+     const room = await RoomModel.findByIdAndDelete(roomId)
+     
+     if(!room){
+      return res.status(400).json({
+        success: false,
+        message: "room not found"
+      })
+     }
+      
+      res.status(200).json({
+        status : success,
+        message: 'Room deleted succcesfully'
+      })
+     const io = getIO();
+     io.to(roomId).emit("room-deleted",{
+      roomId
+     })
+      
+    } catch (error) {
+       console.error(error)
+    }
  })
 
 export default RoomRouter;

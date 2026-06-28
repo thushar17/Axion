@@ -7,7 +7,7 @@ import { connectDB } from './config/db.js';
 import { initializedSocket } from './socket/index.js';
 import AuthRouter from './routes/auth.js';
 import RoomRouter from './routes/rooms.js';
-
+import { RoomModel } from './models/rooms.js';
 
 dotenv.config();
 const app = express()
@@ -20,6 +20,7 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser())
 await connectDB()
+await RoomModel.syncIndexes()
 const PORT = 8000
 
 const server = http.createServer(app)

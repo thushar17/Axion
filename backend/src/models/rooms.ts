@@ -33,7 +33,8 @@ const RoomSchema = new Schema({
     },
     inviteLink:{
         type: String,
-        unique: true
+        unique: true,
+        sparse: true
     },
     inviteLinExpiresAt:{
         type: Date
