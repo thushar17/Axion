@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -28,6 +33,14 @@ export default function LoginPage() {
 
       const data = await response.json();
       setMessage(data.message ?? (response.ok ? "Login successful" : "Login failed"));
+
+      if (response.ok) {
+        if (redirect) {
+          router.push(redirect);
+        } else {
+          router.push("/");
+        }
+      }
     } catch {
       setMessage("Could not connect to backend");
     } finally {

@@ -1,41 +1,50 @@
- "use client"
+"use client"
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 
 
- export default function InvitePage({
-  params,
-}: {
-  params: { inviteCode: string };
-}){
+
+export default function InvitePage() {
     const router = useRouter()
-    
- 
-    useEffect(()=>{
-        const joinRoom = async()=>{
+    const params = useParams()
+    const searchParams = useSearchParams()
+    const redirect = searchParams.get("redirect")
+    const hasJoined = useRef(false);
+
+
+    useEffect(() => {
+        if (hasJoined.current) return;
+        hasJoined.current = true;
+        const joinRoom = async () => {
             console.log(params.inviteCode)
-               
+
             try {
-               const response =  await axios.post("http://localhost:8000/room/join-invite",{
+                const response = await axios.post("http://localhost:8000/room/join-invite", {
                     inviteCode: params.inviteCode
-                },{
+                }, {
                     withCredentials: true
                 })
                 if (!response.data.success) {
-                  alert(response.data.message)
-}
-router.push('/chat')
-            } catch (error) {
-                console.error(error)
+                    alert(response.data.message)
+                }
+                router.push(redirect || "/chat")
+            } catch (error: any) {
+                if(error.response?.status === 401){
+                    router.push(`/auth/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+                    return;
+                }
+                console.log(error)
+            
             }
 
         }
-         joinRoom()
-    },[])
+        joinRoom()
+    }, [])
 
     return <div>Joining ... </div>
-  
+
 }
