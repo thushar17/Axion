@@ -230,7 +230,7 @@ RoomRouter.post("/generate-invite", authMiddleware , async (req: Request, res: R
         { _id: roomId },
         { 
            inviteLink: inviteCode,
-           inviteLinExpiresAt: expiresAt 
+           inviteLinkExpiresAt: expiresAt 
         },
         { new: true }
       );
@@ -269,6 +269,12 @@ RoomRouter.post("/generate-invite", authMiddleware , async (req: Request, res: R
               success: false,
               message: 'room not found'
             })
+          }
+          if (room.inviteLinkExpiresAt && new Date() > room.inviteLinkExpiresAt) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invite link has expired'
+            });
           }
           const alreadyMember = room.members.some(member =>
     member.user.equals(userId)
@@ -330,18 +336,19 @@ return res.status(200).json({
         message: "room not found"
       })
      }
-      
-      res.status(200).json({
-        status : success,
+           const io = getIO();
+      io.to(roomId).emit("room-deleted",{
+       roomId
+      })
+       
+      return res.status(200).json({
+        success: true,
         message: 'Room deleted succcesfully'
       })
-     const io = getIO();
-     io.to(roomId).emit("room-deleted",{
-      roomId
-     })
       
     } catch (error) {
        console.error(error)
+       res.status(500).json({ success: false, message: "Internal server error" })
     }
  })
 

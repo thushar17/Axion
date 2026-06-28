@@ -222,6 +222,31 @@ export default function ChatPage() {
       );
     });
 
+    socket.on("message-edit", (data) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === data.messageId
+            ? { ...msg, content: data.content, isEdited: data.isEdited }
+            : msg
+        )
+      );
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.replyTo && msg.replyTo._id === data.messageId) {
+            return {
+              ...msg,
+              replyTo: {
+                ...msg.replyTo,
+                content: data.content,
+                isEdited: data.isEdited
+              }
+            };
+          }
+          return msg;
+        })
+      );
+    });
+
     socket.on("room-renamed", (data) => {
       setAllRooms((prev) =>
         prev.map((room) =>
@@ -250,6 +275,7 @@ export default function ChatPage() {
       socket.off("room-deleted")
       socket.off("message-deleted");
       socket.off("message-pinned");
+      socket.off("message-edit");
       socket.off("room-renamed");
 
       socket.disconnect();

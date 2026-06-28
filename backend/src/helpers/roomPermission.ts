@@ -11,5 +11,6 @@ export const checkForUserRole= async (roomId: any,userId: string)=>{
 return room?.members[0]?.role ?? null;
    } catch (error) {
     console.log(error)
+    return null;
    }
 }
