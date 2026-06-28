@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { UserModel } from '../models/user.js'
+import { MessageModel } from '../models/messages.js'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { authMiddleware } from '../middleware/authMIddleware.js'
@@ -126,10 +127,177 @@ AuthRouter.get("/me", authMiddleware, async (req:Request, res: Response) => {
             id: dbUser._id,
             email: dbUser.email,
             username: dbUser.username,
-            avatar: dbUser.avatar
+            avatar: dbUser.avatar,
+            starredMessages: dbUser.starredMessages || [],
+            mutedRooms: dbUser.mutedRooms || [],
+            archivedRooms: dbUser.archivedRooms || [],
+            clearedRooms: dbUser.clearedRooms || []
         }
     })
 })
 
+AuthRouter.post("/star-message", authMiddleware, async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+        const userId = req.user.id;
+        const { messageId } = req.body;
 
-export default AuthRouter
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const isStarred = user.starredMessages.includes(messageId as any);
+        if (isStarred) {
+            user.starredMessages = user.starredMessages.filter(id => id.toString() !== messageId);
+        } else {
+            user.starredMessages.push(messageId as any);
+        }
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            isStarred: !isStarred,
+            starredMessages: user.starredMessages
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
+AuthRouter.get("/starred-messages", authMiddleware, async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+        const userId = req.user.id;
+
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const messages = await MessageModel.find({
+            _id: { $in: user.starredMessages }
+        }).populate("sender", "username email avatar");
+
+        return res.status(200).json({
+            success: true,
+            messages
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
+AuthRouter.post("/mute-room", authMiddleware, async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+        const userId = req.user.id;
+        const { roomId } = req.body;
+
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const isMuted = user.mutedRooms.includes(roomId as any);
+        if (isMuted) {
+            user.mutedRooms = user.mutedRooms.filter(id => id.toString() !== roomId);
+        } else {
+            user.mutedRooms.push(roomId as any);
+        }
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            isMuted: !isMuted,
+            mutedRooms: user.mutedRooms
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
+AuthRouter.post("/archive-room", authMiddleware, async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+        const userId = req.user.id;
+        const { roomId } = req.body;
+
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const isArchived = user.archivedRooms.includes(roomId as any);
+        if (isArchived) {
+            user.archivedRooms = user.archivedRooms.filter(id => id.toString() !== roomId);
+        } else {
+            user.archivedRooms.push(roomId as any);
+        }
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            isArchived: !isArchived,
+            archivedRooms: user.archivedRooms
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
+AuthRouter.post("/clear-chat", authMiddleware, async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+        const userId = req.user.id;
+        const { roomId } = req.body;
+
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const clearedEntryIndex = user.clearedRooms.findIndex(c => c.roomId?.toString() === roomId);
+        if (clearedEntryIndex !== -1) {
+            const entry = user.clearedRooms[clearedEntryIndex];
+            if (entry) {
+                entry.clearedAt = new Date();
+            }
+        } else {
+            user.clearedRooms.push({
+                roomId: roomId as any,
+                clearedAt: new Date()
+            });
+        }
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Chat history cleared successfully",
+            clearedRooms: user.clearedRooms
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
+export default AuthRouter;

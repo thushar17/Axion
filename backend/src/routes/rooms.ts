@@ -407,4 +407,233 @@ return res.status(200).json({
   }
  })
 
+ // delete message route (soft delete)
+ RoomRouter.post("/delete-message", authMiddleware, async (req: Request, res: Response) => {
+   try {
+     if (!req.user) {
+       return res.status(401).json({
+         success: false,
+         message: "User not authorized"
+       });
+     }
+     const userId = req.user.id;
+     const { messageId } = req.body;
+
+     const message = await MessageModel.findById(messageId);
+     if (!message) {
+       return res.status(400).json({
+         success: false,
+         message: "Message not found"
+       });
+     }
+
+     if (message.sender.toString() !== userId) {
+       return res.status(403).json({
+         success: false,
+         message: "Only the sender can delete this message"
+       });
+     }
+
+     message.isDeleted = true;
+     message.content = "This message was deleted";
+     await message.save();
+
+     const io = getIO();
+     io.to(message.roomId.toString()).emit("message-deleted", {
+       messageId: message._id,
+       content: message.content,
+       isDeleted: true
+     });
+
+     res.status(200).json({
+       success: true,
+       message
+     });
+   } catch (error) {
+     console.error(error);
+     res.status(500).json({
+       success: false,
+       message: "Internal server error"
+     });
+   }
+ });
+
+ // pin message route
+ RoomRouter.post("/pin-message", authMiddleware, async (req: Request, res: Response) => {
+   try {
+     if (!req.user) {
+       return res.status(401).json({
+         success: false,
+         message: "User not authorized"
+       });
+     }
+     const userId = req.user.id;
+     const { messageId, isPinned } = req.body;
+
+     const message = await MessageModel.findById(messageId);
+     if (!message) {
+       return res.status(400).json({
+         success: false,
+         message: "Message not found"
+       });
+     }
+
+     const role = await checkForUserRole(message.roomId, userId);
+     if (role !== "admin") {
+       return res.status(403).json({
+         success: false,
+         message: "Only admins can pin or unpin messages"
+       });
+     }
+
+     message.isPinned = isPinned;
+     await message.save();
+
+     const io = getIO();
+     io.to(message.roomId.toString()).emit("message-pinned", {
+       messageId: message._id,
+       isPinned: message.isPinned
+     });
+
+     res.status(200).json({
+       success: true,
+       message
+     });
+   } catch (error) {
+     console.error(error);
+     res.status(500).json({
+       success: false,
+       message: "Internal server error"
+     });
+   }
+ });
+
+ // rename room route
+ RoomRouter.post("/rename", authMiddleware, async (req: Request, res: Response) => {
+   try {
+     if (!req.user) {
+       return res.status(401).json({
+         success: false,
+         message: "User not authorized"
+       });
+     }
+     const userId = req.user.id;
+     const { roomId, newName } = req.body;
+
+     if (!newName?.trim()) {
+       return res.status(400).json({
+         success: false,
+         message: "Room name cannot be empty"
+       });
+     }
+
+     const role = await checkForUserRole(roomId, userId);
+     if (role !== "admin") {
+       return res.status(403).json({
+         success: false,
+         message: "Only admins can rename rooms"
+       });
+     }
+
+     const room = await RoomModel.findByIdAndUpdate(
+       roomId,
+       { name: newName.trim() },
+       { new: true }
+     );
+
+     if (!room) {
+       return res.status(400).json({
+         success: false,
+         message: "Room not found"
+       });
+     }
+
+     const io = getIO();
+     io.to(roomId).emit("room-renamed", {
+       roomId,
+       newName: room.name
+     });
+
+     res.status(200).json({
+       success: true,
+       room
+     });
+   } catch (error) {
+     console.error(error);
+     res.status(500).json({
+       success: false,
+       message: "Internal server error"
+     });
+   }
+ });
+
+ // leave room route
+ RoomRouter.post("/leave", authMiddleware, async (req: Request, res: Response) => {
+   try {
+     if (!req.user) {
+       return res.status(401).json({
+         success: false,
+         message: "User not authorized"
+       });
+     }
+     const userId = req.user.id;
+     const { roomId } = req.body;
+
+     const room = await RoomModel.findById(roomId);
+     if (!room) {
+       return res.status(400).json({
+         success: false,
+         message: "Room not found"
+       });
+     }
+
+     const memberIndex = room.members.findIndex(m => m.user.toString() === userId);
+     if (memberIndex === -1) {
+       return res.status(400).json({
+         success: false,
+         message: "You are not a member of this room"
+       });
+     }
+
+     const member = room.members[memberIndex];
+     if (!member) {
+       return res.status(400).json({
+         success: false,
+         message: "You are not a member of this room"
+       });
+     }
+
+     const userRole = member.role;
+     if (userRole === "admin") {
+       const admins = room.members.filter(m => m.role === "admin");
+       if (admins.length === 1) {
+         return res.status(400).json({
+           success: false,
+           message: "You cannot leave because you are the last admin. Promote another member or delete the room."
+         });
+       }
+     }
+
+     room.members.splice(memberIndex, 1);
+     await room.save();
+
+     const io = getIO();
+     io.to(roomId).emit("member-removed", {
+       roomId,
+       memberId: userId
+     });
+
+     res.status(200).json({
+       success: true,
+       message: "Left room successfully"
+     });
+   } catch (error) {
+     console.error(error);
+     res.status(500).json({
+       success: false,
+       message: "Internal server error"
+     });
+   }
+ });
+
 export default RoomRouter;

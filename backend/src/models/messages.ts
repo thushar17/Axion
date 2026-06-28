@@ -32,6 +32,14 @@ const MessageSchema = new Schema({
     isEdited:{
       type: Boolean,
       default: false
+    },
+    isDeleted:{
+      type: Boolean,
+      default: false
+    },
+    isPinned:{
+      type: Boolean,
+      default: false
     }
 })
 

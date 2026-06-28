@@ -4,6 +4,7 @@ import { handelOnlineUsers } from "./handler/presence.js";
 import { socketAuthMiddleware } from "./middleware/auth.js";
 import { registerMessageHandlers } from "./handler/message.js";
 import { registerRoomHandler } from "./handler/room.js";
+import type { AuthSocket } from "../types/index.js";
 let io: Server;
 
 export const initializedSocket = (server: http.Server) => {
@@ -19,20 +20,21 @@ export const initializedSocket = (server: http.Server) => {
   // Socket Authentication Middleware
   socketAuthMiddleware(io)
   io.on("connection", (socket) => {
-    console.log(`Socket connected: ${socket.id}`);
+    const authSocket = socket as AuthSocket;
+    console.log(`Socket connected: ${authSocket.id}`);
 
     // Register handlers synchronously first to avoid race condition
-    registerRoomHandler(socket)
+    registerRoomHandler(authSocket)
     console.log("Room handlers registered");
-    registerMessageHandlers(socket, io)
+    registerMessageHandlers(authSocket, io)
 
     // Handle online users without blocking listener registration
-    handelOnlineUsers(socket).catch(err => {
+    handelOnlineUsers(authSocket).catch(err => {
       console.error("Error in handelOnlineUsers:", err);
     });
 
-    socket.on("disconnect", () => {
-      console.log(`Socket disconnected: ${socket.id}`);
+    authSocket.on("disconnect", () => {
+      console.log(`Socket disconnected: ${authSocket.id}`);
     });
   });
 

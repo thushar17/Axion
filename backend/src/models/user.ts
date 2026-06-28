@@ -25,6 +25,25 @@ const UserSchema = new Schema({
     },
     lastSeen:{
         type: Date
+    },
+    starredMessages: {
+        type: [{ type: Schema.Types.ObjectId, ref: 'Message' }],
+        default: []
+    },
+    mutedRooms: {
+        type: [{ type: Schema.Types.ObjectId, ref: 'Room' }],
+        default: []
+    },
+    archivedRooms: {
+        type: [{ type: Schema.Types.ObjectId, ref: 'Room' }],
+        default: []
+    },
+    clearedRooms: {
+        type: [{
+            roomId: { type: Schema.Types.ObjectId, ref: 'Room' },
+            clearedAt: { type: Date, default: Date.now }
+        }],
+        default: []
     }
 
 })
