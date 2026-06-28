@@ -28,6 +28,10 @@ const MessageSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Message',
         default: null
+    },
+    isEdited:{
+      type: Boolean,
+      default: false
     }
 })
 

@@ -9,6 +9,7 @@ import { getIO } from '../socket/index.js';
 const RoomRouter = Router()
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
 import { success } from 'zod';
+import { MessageModel } from '../models/messages.js';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
@@ -342,6 +343,68 @@ return res.status(200).json({
     } catch (error) {
        console.error(error)
     }
+ })
+
+ //  edit message route
+
+ RoomRouter.post("/edit-message",authMiddleware,async(req:Request, res: Response)=>{
+  try {
+       if(!req.user){
+        return res.status(401).json({
+           success: false,
+           message: "User not authorized"
+        })
+      }
+     const userId = req.user.id
+     
+     const {messageId, messageContent} = req.body
+     if (!messageContent?.trim()) {
+  return res.status(400).json({
+    success: false,
+    message: "Message cannot be empty"
+  });
+}
+
+     const message = await MessageModel.findById(messageId)
+     if(!message){
+      return res.status(400).json({
+        success: false,
+        message: "message not found in database"
+      }) }
+
+      if(message.sender.toString() !== userId){
+          return res.status(403).json({
+            success: false,
+            message: "You are not owner of this message"
+          })
+      }
+     if (message.content === messageContent.trim()) {
+  return res.status(400).json({
+    success: false,
+    message: "No changes detected"
+  });
+}
+    message.content = messageContent.trim()
+    message.isEdited = true 
+    
+    await message.save()
+
+    const io = getIO()
+
+    io.to(message.roomId.toString()).emit("message-edit",{
+       messageId: message._id,
+       content : message.content,
+       isEdited: true
+    })
+    res.status(200).json({
+         success: true, 
+         message
+    })
+       
+     
+  } catch (error) {
+    
+  }
  })
 
 export default RoomRouter;

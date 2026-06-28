@@ -32,6 +32,8 @@ export default function ChatPage() {
   const [unreadMessageCount, setUnreadMessageCount] = useState<{ [roomId: string]: number }>({})
   const [inviteLink , setInviteLink] = useState("")
   const [replyingTo, setReplyingTo] = useState<any>(null)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+const [editedContent, setEditedContent] = useState("");
   // verifying user auth
   useEffect(() => {
     const checkAuth = async () => {
@@ -81,7 +83,7 @@ export default function ChatPage() {
       
       if (currentRoom && message.roomId === currentRoom._id) {
         setMessages((prev) => [...prev, message]);
-        if (message.sender !== user.id) {
+        if (message.sender._id !== user.id) {
           socket.emit("message-seen", currentRoom._id);
         }
       } else {
@@ -180,12 +182,17 @@ export default function ChatPage() {
 
     if (!input.trim() || !selectedRoom) return;
      
+    if (editingMessageId) {
+      handelEditMessage();
+      return;
+    }
+
     socket.emit(
       "send-message",
       {
         roomId: selectedRoom._id,
         content: input,
-        replyTo: replyingTo?._id
+        replyTo: replyingTo?._id 
       },
       (response: any) => {
         console.log("ACK:", response);
@@ -197,6 +204,7 @@ export default function ChatPage() {
     });
 
     setInput("");
+    setReplyingTo(null)
   };
 
 
@@ -396,6 +404,30 @@ export default function ChatPage() {
         console.error(error)
       }
     }   
+    // handel edit
+    const handelEditMessage = async () => {
+      if (!input.trim()) return;
+      try {
+        const response = await axios.post(`${API_URL}/room/edit-message`, {
+          messageId: editingMessageId,
+          messageContent: input
+        }, {
+          withCredentials: true
+        });
+        
+        if (response.data.success) {
+          setMessages(messages.map(msg => 
+            msg._id === editingMessageId ? { ...msg, content: input } : msg
+          ));
+          setEditingMessageId(null);
+          setInput("");
+        } else {
+          alert(response.data.message || "Failed to edit message");
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
 
   if (loading) {
     return (
@@ -517,99 +549,162 @@ export default function ChatPage() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-4 bg-zinc-50 space-y-4">
-
           {messages.map((message) => {
-            const isOwnMessage = (message.sender?._id || message.sender) === user?.id;
+            const isMe = message.sender._id === user?.id;
             return (
-            <div
-              key={message._id}
-              className={`flex group ${isOwnMessage
-                ? "justify-end"
-                : "justify-start"
-                }`}
-            >
               <div
-                className={`max-w-md rounded-2xl px-4 py-3 shadow-sm flex flex-col gap-1 ${isOwnMessage
-                  ? "bg-blue-600 text-white"
-                  : "bg-white border border-zinc-200 text-black"
-                  }`}
+                key={message._id}
+                className={`flex group ${isMe ? "justify-end" : "justify-start"}`}
               >
-                {/* Reply context */}
-                {message.replyTo && (
-                  <div className={`text-xs p-2 rounded bg-opacity-20 border-l-2 mb-1 truncate ${
-                    isOwnMessage 
-                      ? 'bg-black border-white text-blue-100' 
-                      : 'bg-zinc-200 border-blue-500 text-zinc-600'
-                  }`}>
-                    {typeof message.replyTo === 'object' 
-                      ? message.replyTo.content 
-                      : (messages.find(m => m._id === message.replyTo)?.content || 'Replied to a message')}
-                  </div>
-                )}
-                
-                <div className="flex justify-between items-start gap-3">
-                  <p className="break-words">{message.content}</p>
-                  <button 
-                    onClick={() => setReplyingTo(message)}
-                    className={`text-xs shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${
-                      isOwnMessage ? "text-blue-200 hover:text-white" : "text-zinc-400 hover:text-blue-600"
-                    }`}
-                  >
-                     Reply
-                  </button>
-                </div>
+                <div className="relative flex items-center max-w-[70%]">
+                  <div className="flex gap-50">
 
-                <div className="mt-1 text-[10px] opacity-70 flex justify-end">
-                  {message.status}
+                      {isMe && (
+                    <button
+                      onClick={() => setReplyingTo(message)}
+                      className="absolute -left-12 opacity-0 group-hover:opacity-100 transition-opacity p-2 text-zinc-400 hover:text-blue-600 rounded-full hover:bg-zinc-100"
+                      title="Reply"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+                    </button>
+                    
+                    
+                  )}
+                  
+                    
+                    
+                  {message.sender._id === user?.id && (
+
+<button className="text-black"
+    onClick={()=>{
+        setEditingMessageId(message._id);
+        setInput(message.content);
+    }}
+>
+    Edit
+</button>
+
+)}
+                  </div>
+                  {/* Reply Button (Left side if I sent it, Right side if they sent it) */}
+                
+
+
+                  <div
+                    className={`rounded-2xl px-4 py-3 shadow-sm w-full ${isMe
+                      ? "bg-blue-600 text-white rounded-br-sm"
+                      : "bg-white border border-zinc-100 text-black rounded-bl-sm"
+                      }`}
+                  >
+                    <div>
+                      {message.replyTo && (
+                        <div className={`border-l-4 rounded p-2 mb-2 text-sm ${isMe ? 'border-white/50 bg-black/10' : 'border-blue-500 bg-zinc-100'}`}>
+                          <p className={`font-semibold text-xs ${isMe ? 'text-white' : 'text-blue-600'}`}>
+                            {message.replyTo.sender.username}
+                          </p>
+                          <p className={`text-xs mt-0.5 line-clamp-2 ${isMe ? 'text-blue-100' : 'text-zinc-600'}`}>
+                            {message.replyTo.content}
+                          </p>
+                        </div>
+                      )}
+
+                      <p className="text-[15px] leading-relaxed break-words">{message.content}</p>
+                    </div>
+
+                    <div className={`mt-1.5 text-[10px] flex justify-end items-center gap-1 ${isMe ? 'text-blue-200' : 'text-zinc-400'}`}>
+                      <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {isMe && <span>{message.status === 'seen' ? '✓✓' : '✓'}</span>}
+                    </div>
+                  </div>
+
+                  {/* Reply Button (Right side if they sent it) */}
+                  {!isMe && (
+                    <button
+                      onClick={() => setReplyingTo(message)}
+                      className="absolute -right-12 opacity-0 group-hover:opacity-100 transition-opacity p-2 text-zinc-400 hover:text-blue-600 rounded-full hover:bg-zinc-100"
+                      title="Reply"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
-          )})}
+            );
+          })}
         </div>
 
         {/* Message Input */}
-        <div className="border-t bg-white flex flex-col">
-          {replyingTo && (
-            <div className="bg-zinc-100 px-4 py-2 border-b border-zinc-200 flex justify-between items-center text-sm text-zinc-600">
-              <div className="flex flex-col">
-                <span className="font-semibold text-blue-600">Replying to</span>
-                <span className="text-zinc-800 truncate max-w-md">{replyingTo.content}</span>
+        {editingMessageId ? (
+          <div className="border-t bg-zinc-50/90 px-6 py-2.5 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-8 bg-blue-500 rounded-full"></div>
+              <div>
+                <p className="text-xs font-semibold text-blue-600">
+                  Editing Message
+                </p>
+                <p className="text-sm text-zinc-600 line-clamp-1">
+                  {input}
+                </p>
               </div>
-              <button
-                onClick={() => setReplyingTo(null)}
-                className="text-zinc-400 hover:text-zinc-600 p-1"
-              >
-                ✕
-              </button>
+            </div>
+            <button
+              onClick={() => {
+                setEditingMessageId(null);
+                setInput("");
+              }}
+              className="text-zinc-400 hover:text-zinc-600 transition-colors p-2 rounded-full hover:bg-zinc-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        ) : replyingTo && (
+          <div className="border-t bg-zinc-50/90 px-6 py-2.5 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-8 bg-blue-500 rounded-full"></div>
+              <div>
+                <p className="text-xs font-semibold text-blue-600">
+                  Replying to {replyingTo.sender.username}
+                </p>
+                <p className="text-sm text-zinc-600 line-clamp-1">
+                  {replyingTo.content}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="text-zinc-400 hover:text-zinc-600 transition-colors p-2 rounded-full hover:bg-zinc-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        )}
+
+        <form
+          onSubmit={sendMessage}
+          className="border-t bg-white p-4 flex gap-3"
+        >
+          {typingUsers.length > 0 && (
+            <div className="px-6 py-2 text-sm italic text-zinc-500">
+              {typingUsers.length === 1
+                ? `${typingUsers[0]} is typing...`
+                : `${typingUsers.join(", ")} are typing...`}
             </div>
           )}
-          <form
-            onSubmit={sendMessage}
-            className="p-4 flex gap-3"
-          >
-            {typingUsers.length > 0 && (
-              <div className="absolute bottom-20 px-6 py-2 text-sm italic text-zinc-500">
-                {typingUsers.length === 1
-                  ? `${typingUsers[0]} is typing...`
-                  : `${typingUsers.join(", ")} are typing...`}
-              </div>
-            )}
-            <input
-              type="text"
-              value={input}
-              onChange={handelInputChange}
-              placeholder={`Message #${selectedRoom?.name || "room"}`}
-              className="flex-1 border border-zinc-200 rounded-xl px-4 py-3 outline-none text-black bg-zinc-50 focus:bg-white focus:border-blue-500 transition-colors"
-            />
+          <input
+            type="text"
+            value={input}
+            onChange={handelInputChange}
+            placeholder={`Message #${selectedRoom?.name || "room"}`}
+            className="flex-1 border rounded-xl px-4 py-3 outline-none text-black"
+          />
 
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl font-medium transition-colors"
-            >
-              Send
-            </button>
-          </form>
-        </div>
+          <button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl"
+          >
+            Send
+          </button>
+        </form>
       </div>
 
       {/* RIGHT SIDEBAR */}

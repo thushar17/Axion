@@ -10,9 +10,15 @@ export const registerRoomHandler = (socket: Socket) => {
 
     socket.on("join-room", async (roomId) => {
         socket.join(roomId);
-        const historyMessages = await MessageModel.find({
-            roomId
-        })
+        const historyMessages = await MessageModel.find({ roomId })
+  .populate("sender", "username email")
+  .populate({
+    path: "replyTo",
+    populate: {
+      path: "sender",
+      select: "username",
+    },
+  })
             .sort({ createdAt: -1 })
             .limit(50)
 
