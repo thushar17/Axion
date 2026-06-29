@@ -2,10 +2,107 @@
 
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef, FormEvent } from "react";
+import {
+  useEffect,
+  useState,
+  useRef,
+  FormEvent,
+  useCallback,
+} from "react";
 import { socket } from "@/src/lib/socket";
+import { toast } from "sonner";
+import { Avatar } from "@/src/components/Avatar";
+import { StatusDot } from "@/src/components/StatusDot";
+import { Modal, ConfirmModal } from "@/src/components/Modal";
+import {
+  Hash,
+  Lock,
+  Plus,
+  Crown,
+  X,
+  Send,
+  Star,
+  MoreHorizontal,
+  Reply,
+  Copy,
+  Pencil,
+  Trash2,
+  Pin,
+  VolumeX,
+  Volume2,
+  Archive,
+  LogOut,
+  ChevronDown,
+  ChevronRight,
+  Users,
+  Link2,
+  Zap,
+  Check,
+  CheckCheck,
+  Menu,
+} from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Helper to safely extract sender ID whether it's populated (object) or unpopulated (string)
+export const getSenderId = (s: any): string => {
+  if (!s) return "";
+  if (typeof s === "string") return s;
+  if (typeof s === "object" && s._id) return String(s._id);
+  if (typeof s === "object" && s.id) return String(s.id);
+  return "";
+};
+
+/* ─── Small sub-components ──────────────────────────────────────────────── */
+
+function TypingIndicator({ users }: { users: string[] }) {
+  if (!users.length) return null;
+  return (
+    <div className="flex items-center gap-2 px-4 py-2">
+      <div className="flex gap-1 items-end">
+        <span className="typing-dot" />
+        <span className="typing-dot" />
+        <span className="typing-dot" />
+      </div>
+      <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+        {users.length === 1
+          ? `${users[0]} is typing…`
+          : `${users.join(", ")} are typing…`}
+      </span>
+    </div>
+  );
+}
+
+function DeliveryTick({ status, isMe }: { status: string; isMe: boolean }) {
+  if (!isMe) return null;
+  if (status === "seen") {
+    return (
+      <CheckCheck
+        size={13}
+        className="shrink-0"
+        style={{ color: "var(--accent-hover)" }}
+      />
+    );
+  }
+  if (status === "delivered") {
+    return (
+      <CheckCheck
+        size={13}
+        className="shrink-0"
+        style={{ color: "var(--text-muted)" }}
+      />
+    );
+  }
+  return (
+    <Check
+      size={13}
+      className="shrink-0"
+      style={{ color: "var(--text-muted)" }}
+    />
+  );
+}
+
+/* ─── Main Component ─────────────────────────────────────────────────────── */
 
 export default function ChatPage() {
   const router = useRouter();
@@ -14,24 +111,26 @@ export default function ChatPage() {
   const [user, setUser] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
-  const [roomName, setRoomName] = useState("")
-  const [roomType, setRoomType] = useState("")
-  const [allRooms, setAllRooms] = useState<any[]>([])
-  const [selectedRoom, setSelectedRoom] = useState<any>(null)
+  const [roomName, setRoomName] = useState("");
+  const [roomType, setRoomType] = useState("public");
+  const [allRooms, setAllRooms] = useState<any[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const selectedRoomRef = useRef<any>(null);
 
   useEffect(() => {
     selectedRoomRef.current = selectedRoom;
   }, [selectedRoom]);
 
-  const [members, setMembers] = useState<any[]>([])
+  const [members, setMembers] = useState<any[]>([]);
   const [showAddMember, setShowAddMember] = useState(false);
-  const [email, setEmail] = useState("")
-  const [typingUsers, setTypingUsers] = useState<any[]>([])
+  const [email, setEmail] = useState("");
+  const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
-  const [unreadMessageCount, setUnreadMessageCount] = useState<{ [roomId: string]: number }>({})
-  const [inviteLink , setInviteLink] = useState("")
-  const [replyingTo, setReplyingTo] = useState<any>(null)
+  const [unreadMessageCount, setUnreadMessageCount] = useState<{
+    [roomId: string]: number;
+  }>({});
+  const [inviteLink, setInviteLink] = useState("");
+  const [replyingTo, setReplyingTo] = useState<any>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState("");
 
@@ -40,11 +139,31 @@ export default function ChatPage() {
   const [showStarredPanel, setShowStarredPanel] = useState(false);
   const [mutedRoomIds, setMutedRoomIds] = useState<string[]>([]);
   const [archivedRoomIds, setArchivedRoomIds] = useState<string[]>([]);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: any } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    message: any;
+  } | null>(null);
   const [showRoomSettings, setShowRoomSettings] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameInput, setRenameInput] = useState("");
   const [showArchivedSection, setShowArchivedSection] = useState(false);
+
+  // UI state
+  const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [showMembersPanel, setShowMembersPanel] = useState(true);
+  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -63,38 +182,33 @@ export default function ChatPage() {
     return () => window.removeEventListener("click", handleGlobalClick);
   }, []);
 
-  // verifying user auth
+  // ── Auth check ────────────────────────────────────────────────────────────
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get(
-          `${API_URL}/auth/me`,
-          {
-            withCredentials: true,
-          }
-        );
+        const response = await axios.get(`${API_URL}/auth/me`, {
+          withCredentials: true,
+        });
         setUser(response.data.user);
         socket.connect();
         setLoading(false);
       } catch (error) {
         console.log(error);
-        router.push("/login");
+        router.push("/auth/login");
       }
     };
     checkAuth();
   }, [router]);
 
-
-  // trigerring socket events 
+  // ── Socket events ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
 
-    socket.on("connect", () => {
-    });
+    socket.on("connect", () => {});
 
     socket.on("connect_error", (err) => {
       console.log("Socket Error:", err.message);
-      router.push("/login");
+      router.push("/auth/login");
     });
 
     socket.on("room-joined", (roomId) => {
@@ -103,32 +217,30 @@ export default function ChatPage() {
 
     socket.on("message-history", (history) => {
       setMessages(history.reverse());
-      console.log("history", history)
+      setTimeout(scrollToBottom, 100);
     });
 
     socket.on("new-message", (message) => {
       const currentRoom = selectedRoomRef.current;
-      console.log(`hello i amm message id`, currentRoom)
-      
       if (currentRoom && message.roomId === currentRoom._id) {
         setMessages((prev) => [...prev, message]);
-        if (message.sender._id !== user.id) {
+        if (getSenderId(message.sender) !== user.id) {
           socket.emit("message-seen", currentRoom._id);
         }
+        setTimeout(scrollToBottom, 60);
       } else {
         setUnreadMessageCount((prev) => ({
           ...prev,
           [message.roomId]: (prev[message.roomId] || 0) + 1,
-        }))
+        }));
       }
+      socket.emit("message-delivered", { messageId: message._id });
+    });
 
-      socket.emit("message-delivered", {
-        messageId: message._id,
-      })
-    })
     socket.on("message-status-updated", (data) => {
-      const ids = Array.isArray(data.messageId) ? data.messageId : [data.messageId];
-
+      const ids = Array.isArray(data.messageId)
+        ? data.messageId
+        : [data.messageId];
       setMessages((prev) =>
         prev.map((msg) =>
           ids.includes(String(msg._id))
@@ -141,9 +253,9 @@ export default function ChatPage() {
     socket.on("typing-status", (data) => {
       setTypingUsers((prev) => {
         if (prev.includes(data.username)) return prev;
-        return [...prev, data.username]
-      })
-    })
+        return [...prev, data.username];
+      });
+    });
 
     socket.on("stop-typing-status", (data) => {
       setTypingUsers((prev) =>
@@ -154,40 +266,35 @@ export default function ChatPage() {
     socket.on("member-removed", (data) => {
       if (data.memberId === user.id) {
         setAllRooms((prev) => {
-          const updatedRooms = prev.filter((room) => room._id !== data.roomId);
-
+          const updatedRooms = prev.filter(
+            (room) => room._id !== data.roomId
+          );
           if (selectedRoomRef.current?._id === data.roomId) {
             setSelectedRoom(updatedRooms[0] ?? null);
             setMessages([]);
             setMembers([]);
           }
-
           return updatedRooms;
         });
-
         return;
       }
-
       setMembers((prev) =>
         prev.filter((member) => member.user._id !== data.memberId)
       );
     });
 
-    socket.on("room-deleted",(data)=>{
-       setAllRooms((prev)=>{
-        const roomId = selectedRoomRef.current?._id
-          const updateRoom = prev.filter((room)=> room._id!== data.roomId)
-          if(roomId === data.roomId){
-            setSelectedRoom(updateRoom[0]|| null)
-            setMembers([])
-            setMembers([])
-          }
-          return updateRoom
-         
-       })
-       
-       return;
-    })
+    socket.on("room-deleted", (data) => {
+      setAllRooms((prev) => {
+        const roomId = selectedRoomRef.current?._id;
+        const updateRoom = prev.filter((room) => room._id !== data.roomId);
+        if (roomId === data.roomId) {
+          setSelectedRoom(updateRoom[0] || null);
+          setMembers([]);
+          setMessages([]);
+        }
+        return updateRoom;
+      });
+    });
 
     socket.on("message-deleted", (data) => {
       setMessages((prev) =>
@@ -205,8 +312,8 @@ export default function ChatPage() {
               replyTo: {
                 ...msg.replyTo,
                 content: data.content,
-                isDeleted: true
-              }
+                isDeleted: true,
+              },
             };
           }
           return msg;
@@ -217,7 +324,9 @@ export default function ChatPage() {
     socket.on("message-pinned", (data) => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === data.messageId ? { ...msg, isPinned: data.isPinned } : msg
+          msg._id === data.messageId
+            ? { ...msg, isPinned: data.isPinned }
+            : msg
         )
       );
     });
@@ -238,8 +347,8 @@ export default function ChatPage() {
               replyTo: {
                 ...msg.replyTo,
                 content: data.content,
-                isEdited: data.isEdited
-              }
+                isEdited: data.isEdited,
+              },
             };
           }
           return msg;
@@ -268,25 +377,23 @@ export default function ChatPage() {
       socket.off("message-history");
       socket.off("new-message");
       socket.off("message-status-updated");
-      socket.off("typing-status")
-      socket.off("stop-typing-status");
       socket.off("typing-status");
+      socket.off("stop-typing-status");
       socket.off("member-removed");
-      socket.off("room-deleted")
+      socket.off("room-deleted");
       socket.off("message-deleted");
       socket.off("message-pinned");
       socket.off("message-edit");
       socket.off("room-renamed");
-
       socket.disconnect();
     };
-  }, [user, router]);
-  // message send 
+  }, [user, router, scrollToBottom]);
+
+  // ── Send message ──────────────────────────────────────────────────────────
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!input.trim() || !selectedRoom) return;
-     
+
     if (editingMessageId) {
       handelEditMessage();
       return;
@@ -297,631 +404,783 @@ export default function ChatPage() {
       {
         roomId: selectedRoom._id,
         content: input,
-        replyTo: replyingTo?._id 
+        replyTo: replyingTo?._id,
       },
       (response: any) => {
         console.log("ACK:", response);
       }
     );
+
     socket.emit("stop-typing", {
       roomId: selectedRoom.name,
       username: user.username,
     });
 
     setInput("");
-    setReplyingTo(null)
+    setReplyingTo(null);
   };
 
-
-  // fetching all rooms
+  // ── Fetch rooms ───────────────────────────────────────────────────────────
   const fetchRooms = async () => {
     try {
       const response = await axios.get(`${API_URL}/room/getRooms`, {
-        withCredentials: true
-      })
+        withCredentials: true,
+      });
       if (response.status !== 200) {
-        return alert(
-          'faliled to fetch rooms'
-        )
+        toast.error("Failed to fetch rooms");
+        return;
       }
-      setAllRooms(response.data.data)
-
+      setAllRooms(response.data.data);
       const roomIds = response.data.data.map((r: any) => r._id);
-      socket.emit('join-rooms', roomIds);
-
+      socket.emit("join-rooms", roomIds);
       if (response.data.data.length > 0) {
-        setSelectedRoom(response.data.data[0])
+        setSelectedRoom(response.data.data[0]);
       }
-
     } catch (error) {
-
+      console.error(error);
     }
-  }
+  };
 
-  // room creatin form 
+  // ── Create room ───────────────────────────────────────────────────────────
   const handleRoomCreation = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
-      const response = await axios.post(`${API_URL}/room/create`,
-        {
-          name: roomName,
-          type: roomType
-        }, {
-        withCredentials: true
+      const response = await axios.post(
+        `${API_URL}/room/create`,
+        { name: roomName, type: roomType },
+        { withCredentials: true }
+      );
+      if (response.status === 400) {
+        toast.error("Error while creating room");
+        return;
       }
-      )
-
-      if (response.status == 400) {
-        return alert("Error while creating room")
-      }
-      alert(response.data.message)
-      await fetchRooms()
-      setRoomName("")
-      setRoomType("")
+      toast.success(response.data.message);
+      await fetchRooms();
+      setRoomName("");
+      setRoomType("public");
+      setShowCreateRoom(false);
     } catch (error) {
-      console.log(error)
+      console.log(error);
+      toast.error("Failed to create room");
     }
-
-  }
+  };
 
   useEffect(() => {
-    fetchRooms()
+    fetchRooms();
+  }, []);
 
-  }, [])
-
+  // ── Fetch members ─────────────────────────────────────────────────────────
   const fetchMembers = async () => {
     try {
-      const response = await axios.get(`${API_URL}/room/${selectedRoom._id}/members`, {
-        withCredentials: true
-      })
-      
-      setMembers(response.data.members)
+      const response = await axios.get(
+        `${API_URL}/room/${selectedRoom._id}/members`,
+        { withCredentials: true }
+      );
+      setMembers(response.data.members);
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }
-  // join selected rooms
+  };
+
   useEffect(() => {
-    if (!selectedRoom) return
-
-    socket.emit('join-room', selectedRoom._id)
-
-    setUnreadMessageCount(prev => {
+    if (!selectedRoom) return;
+    socket.emit("join-room", selectedRoom._id);
+    setUnreadMessageCount((prev) => {
       const newCount = { ...prev };
       delete newCount[selectedRoom._id];
       return newCount;
     });
+    fetchMembers();
+    setMobileSidebarOpen(false);
+  }, [selectedRoom]);
 
-    fetchMembers()
-  }, [selectedRoom])
-
-
-  // add member handel
-
-  const handleAddMember = async () => {
+  // ── Add member ────────────────────────────────────────────────────────────
+  const handleAddMember = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!selectedRoom) return;
     try {
-      const response = await axios.post(`${API_URL}/room/add-member`, {
-        email,
-        roomId: selectedRoom._id
-      }, {
-        withCredentials: true
-      })
-
+      const response = await axios.post(
+        `${API_URL}/room/add-member`,
+        { email, roomId: selectedRoom._id },
+        { withCredentials: true }
+      );
       if (response.data.success) {
-        alert(response.data.message)
+        toast.success(response.data.message);
+        setEmail("");
+        setShowAddMember(false);
       }
-      await fetchMembers()
-    } catch (error) {
-      console.log(error)
+      await fetchMembers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to add member");
     }
-  }
+  };
 
-  // 
+  // ── Typing ────────────────────────────────────────────────────────────────
   const handelInputChange = (e: any) => {
-    setInput(e.target.value)
+    setInput(e.target.value);
     if (!selectedRoom) return;
-    socket.emit("typing",
-      {
-        roomId: selectedRoom._id,
-        username: user?.username
-
-
-      }
-    )
-    if (typingTimeout.current) {
-      clearTimeout(typingTimeout.current)
-    }
-
+    socket.emit("typing", {
+      roomId: selectedRoom._id,
+      username: user?.username,
+    });
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
     typingTimeout.current = setTimeout(() => {
       socket.emit("stop-typing", {
         roomId: selectedRoom._id,
-        username: user.username
-
-      })
+        username: user.username,
+      });
     }, 1000);
-  }
+  };
 
- // remove member
- const handelRemoveMember = async(memberId: string) =>{
-      try {
-        const response = await axios.delete(`${API_URL}/room/remove-member`,
-          {
-            data:{
-               memberId,
-            roomId: selectedRoom._id
-            },
-            withCredentials: true
-          }
-           
-        )
-       if(response.data.success){
-        alert('member removed ')
-       }
-      } catch (error) {
-        console.log(error) 
+  // ── Remove member ─────────────────────────────────────────────────────────
+  const handelRemoveMember = async (memberId: string) => {
+    try {
+      const response = await axios.delete(`${API_URL}/room/remove-member`, {
+        data: { memberId, roomId: selectedRoom._id },
+        withCredentials: true,
+      });
+      if (response.data.success) {
+        toast.success("Member removed");
       }
- }
+    } catch (error) {
+      console.log(error);
+      toast.error("Failed to remove member");
+    }
+  };
 
- // is Admin
+  // ── isAdmin check ─────────────────────────────────────────────────────────
   const isAdmin = members.some(
-  (member) =>
-    member.user._id === user.id &&
-    member.role === "admin"
-);
+    (member) =>
+      member.user._id === user?.id && member.role === "admin"
+  );
 
-// generate invite link 
-  const handelLinkGeneration =async ()=>{
-       try {
-          const response = await axios.post(`${API_URL}/room/generate-invite`,{
-            roomId: selectedRoom._id
-          },{
-            withCredentials: true
-          }
-          )
-
-          if(!response.data.success){
-             alert(response.data.message)
-          }
-
-           setInviteLink(response.data.inviteLink)
-          
-       } catch (error) {
-         console.log(error)
-       }
-  }
-// delete room 
-    const handelRoomDelete=async(roomId:string)=>{
-      try {
-        const response = await axios.delete(`${API_URL}/room/delete`,{
-          data:{
-            roomId
-          },
-          withCredentials: true
-        }
-      )
-        if(!response.data.success){
-          return alert(response.data.message)
-        }
-        console.log(response)
-      } catch (error) {
-        console.error(error)
+  // ── Generate invite link ──────────────────────────────────────────────────
+  const handelLinkGeneration = async () => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/room/generate-invite`,
+        { roomId: selectedRoom._id },
+        { withCredentials: true }
+      );
+      if (!response.data.success) {
+        toast.error(response.data.message);
+        return;
       }
-    }   
-    // handel edit
-    const handelEditMessage = async () => {
-      if (!input.trim()) return;
-      try {
-        const response = await axios.post(`${API_URL}/room/edit-message`, {
-          messageId: editingMessageId,
-          messageContent: input
-        }, {
-          withCredentials: true
+      setInviteLink(response.data.inviteLink);
+      toast.success("Invite link generated");
+    } catch (error) {
+      console.log(error);
+      toast.error("Failed to generate invite link");
+    }
+  };
+
+  // ── Delete room ───────────────────────────────────────────────────────────
+  const handelRoomDelete = async (roomId: string) => {
+    try {
+      const response = await axios.delete(`${API_URL}/room/delete`, {
+        data: { roomId },
+        withCredentials: true,
+      });
+      if (!response.data.success) {
+        toast.error(response.data.message);
+        return;
+      }
+      toast.success("Room deleted");
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete room");
+    }
+  };
+
+  // ── Edit message ──────────────────────────────────────────────────────────
+  const handelEditMessage = async () => {
+    if (!input.trim()) return;
+    try {
+      const response = await axios.post(
+        `${API_URL}/room/edit-message`,
+        { messageId: editingMessageId, messageContent: input },
+        { withCredentials: true }
+      );
+      if (response.data.success) {
+        setMessages(
+          messages.map((msg) =>
+            msg._id === editingMessageId
+              ? { ...msg, content: input }
+              : msg
+          )
+        );
+        setEditingMessageId(null);
+        setInput("");
+      } else {
+        toast.error(response.data.message || "Failed to edit message");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to edit message");
+    }
+  };
+
+  // ── Delete message ────────────────────────────────────────────────────────
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/room/delete-message`,
+        { messageId },
+        { withCredentials: true }
+      );
+      if (!response.data.success) {
+        toast.error(response.data.message || "Failed to delete message");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete message");
+    }
+  };
+
+  // ── Pin message ───────────────────────────────────────────────────────────
+  const handlePinMessage = async (messageId: string, isPinned: boolean) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/room/pin-message`,
+        { messageId, isPinned },
+        { withCredentials: true }
+      );
+      if (!response.data.success) {
+        toast.error(response.data.message || "Failed to pin message");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to pin message");
+    }
+  };
+
+  // ── Star message ──────────────────────────────────────────────────────────
+  const handleStarMessage = async (messageId: string) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/auth/star-message`,
+        { messageId },
+        { withCredentials: true }
+      );
+      if (response.data.success) {
+        const starred = response.data.starredMessages;
+        setStarredMessageIds(starred);
+        if (showStarredPanel) fetchStarredMessages();
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to star message");
+    }
+  };
+
+  // ── Fetch starred ─────────────────────────────────────────────────────────
+  const fetchStarredMessages = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/auth/starred-messages`, {
+        withCredentials: true,
+      });
+      if (response.data.success) {
+        setStarredMessages(response.data.messages);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // ── Mute room ─────────────────────────────────────────────────────────────
+  const handleMuteRoom = async (roomId: string) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/auth/mute-room`,
+        { roomId },
+        { withCredentials: true }
+      );
+      if (response.data.success) {
+        setMutedRoomIds(response.data.mutedRooms);
+        toast.success(
+          mutedRoomIds.includes(roomId) ? "Room unmuted" : "Room muted"
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // ── Archive room ──────────────────────────────────────────────────────────
+  const handleArchiveRoom = async (roomId: string) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/auth/archive-room`,
+        { roomId },
+        { withCredentials: true }
+      );
+      if (response.data.success) {
+        setArchivedRoomIds(response.data.archivedRooms);
+        toast.success(
+          archivedRoomIds.includes(roomId) ? "Room unarchived" : "Room archived"
+        );
+        setShowRoomSettings(false);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // ── Clear chat ────────────────────────────────────────────────────────────
+  const handleClearChat = async (roomId: string) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/auth/clear-chat`,
+        { roomId },
+        { withCredentials: true }
+      );
+      if (response.data.success) {
+        setMessages([]);
+        toast.success("Chat cleared");
+        setShowClearConfirm(false);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to clear chat");
+    }
+  };
+
+  // ── Rename room ───────────────────────────────────────────────────────────
+  const handleRenameRoom = async () => {
+    if (!renameInput.trim() || !selectedRoom) return;
+    try {
+      const response = await axios.post(
+        `${API_URL}/room/rename`,
+        { roomId: selectedRoom._id, newName: renameInput },
+        { withCredentials: true }
+      );
+      if (response.data.success) {
+        setIsRenaming(false);
+        setRenameInput("");
+        toast.success("Room renamed");
+      } else {
+        toast.error(response.data.message || "Failed to rename room");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to rename room");
+    }
+  };
+
+  // ── Leave room ────────────────────────────────────────────────────────────
+  const handleLeaveRoom = async (roomId: string) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/room/leave`,
+        { roomId },
+        { withCredentials: true }
+      );
+      if (response.data.success) {
+        setAllRooms((prev) => {
+          const updatedRooms = prev.filter((r) => r._id !== roomId);
+          if (selectedRoom?._id === roomId) {
+            setSelectedRoom(updatedRooms[0] || null);
+            setMessages([]);
+            setMembers([]);
+          }
+          return updatedRooms;
         });
-        
-        if (response.data.success) {
-          setMessages(messages.map(msg => 
-            msg._id === editingMessageId ? { ...msg, content: input } : msg
-          ));
-          setEditingMessageId(null);
-          setInput("");
-        } else {
-          alert(response.data.message || "Failed to edit message");
-        }
-      } catch (error) {
-        console.error(error);
+        setShowLeaveConfirm(false);
+        toast.success("Left room");
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to leave room");
+    }
+  };
+
+  // ── Scroll to message ─────────────────────────────────────────────────────
+  const scrollToMessage = (messageId: string, roomId?: string) => {
+    if (roomId && selectedRoom?._id !== roomId) {
+      const targetRoom = allRooms.find((r) => r._id === roomId);
+      if (targetRoom) {
+        setSelectedRoom(targetRoom);
+        setTimeout(() => {
+          const element = document.getElementById(`msg-${messageId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            element.classList.add("highlight-message");
+            setTimeout(
+              () => element.classList.remove("highlight-message"),
+              2000
+            );
+          }
+        }, 800);
+        return;
       }
     }
+    const element = document.getElementById(`msg-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.classList.add("highlight-message");
+      setTimeout(
+        () => element.classList.remove("highlight-message"),
+        2000
+      );
+    }
+  };
 
-    const handleDeleteMessage = async (messageId: string) => {
-      try {
-        const response = await axios.post(`${API_URL}/room/delete-message`, {
-          messageId
-        }, {
-          withCredentials: true
-        });
-        if (!response.data.success) {
-          alert(response.data.message || "Failed to delete message");
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
+  // ── Timestamp format ──────────────────────────────────────────────────────
+  const formatMessageTimestamp = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday =
+      date.getDate() === yesterday.getDate() &&
+      date.getMonth() === yesterday.getMonth() &&
+      date.getFullYear() === yesterday.getFullYear();
+    const timeStr = date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    if (isToday) return timeStr;
+    if (isYesterday) return `Yesterday, ${timeStr}`;
+    return (
+      date.toLocaleDateString([], { month: "short", day: "numeric" }) +
+      ", " +
+      timeStr
+    );
+  };
 
-    const handlePinMessage = async (messageId: string, isPinned: boolean) => {
-      try {
-        const response = await axios.post(`${API_URL}/room/pin-message`, {
-          messageId,
-          isPinned
-        }, {
-          withCredentials: true
-        });
-        if (!response.data.success) {
-          alert(response.data.message || "Failed to pin message");
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
+  useEffect(() => {
+    if (showStarredPanel) fetchStarredMessages();
+  }, [showStarredPanel]);
 
-    const handleStarMessage = async (messageId: string) => {
-      try {
-        const response = await axios.post(`${API_URL}/auth/star-message`, {
-          messageId
-        }, {
-          withCredentials: true
-        });
-        if (response.data.success) {
-          const starred = response.data.starredMessages;
-          setStarredMessageIds(starred);
-          if (showStarredPanel) {
-            fetchStarredMessages();
-          }
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    const fetchStarredMessages = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/auth/starred-messages`, {
-          withCredentials: true
-        });
-        if (response.data.success) {
-          setStarredMessages(response.data.messages);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    const handleMuteRoom = async (roomId: string) => {
-      try {
-        const response = await axios.post(`${API_URL}/auth/mute-room`, {
-          roomId
-        }, {
-          withCredentials: true
-        });
-        if (response.data.success) {
-          setMutedRoomIds(response.data.mutedRooms);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    const handleArchiveRoom = async (roomId: string) => {
-      try {
-        const response = await axios.post(`${API_URL}/auth/archive-room`, {
-          roomId
-        }, {
-          withCredentials: true
-        });
-        if (response.data.success) {
-          setArchivedRoomIds(response.data.archivedRooms);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    const handleClearChat = async (roomId: string) => {
-      if (!confirm("Are you sure you want to clear chat history for this room? This cannot be undone.")) return;
-      try {
-        const response = await axios.post(`${API_URL}/auth/clear-chat`, {
-          roomId
-        }, {
-          withCredentials: true
-        });
-        if (response.data.success) {
-          setMessages([]);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    const handleRenameRoom = async () => {
-      if (!renameInput.trim() || !selectedRoom) return;
-      try {
-        const response = await axios.post(`${API_URL}/room/rename`, {
-          roomId: selectedRoom._id,
-          newName: renameInput
-        }, {
-          withCredentials: true
-        });
-        if (response.data.success) {
-          setIsRenaming(false);
-          setRenameInput("");
-        } else {
-          alert(response.data.message || "Failed to rename room");
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    const handleLeaveRoom = async (roomId: string) => {
-      if (!confirm("Are you sure you want to leave this room?")) return;
-      try {
-        const response = await axios.post(`${API_URL}/room/leave`, {
-          roomId
-        }, {
-          withCredentials: true
-        });
-        if (response.data.success) {
-          setAllRooms(prev => {
-            const updatedRooms = prev.filter(r => r._id !== roomId);
-            if (selectedRoom?._id === roomId) {
-              setSelectedRoom(updatedRooms[0] || null);
-              setMessages([]);
-              setMembers([]);
-            }
-            return updatedRooms;
-          });
-        }
-      } catch (error: any) {
-        console.error(error);
-        if (error.response?.data?.message) {
-          alert(error.response.data.message);
-        } else {
-          alert("Failed to leave room");
-        }
-      }
-    };
-
-    const scrollToMessage = (messageId: string, roomId?: string) => {
-      if (roomId && selectedRoom?._id !== roomId) {
-        const targetRoom = allRooms.find(r => r._id === roomId);
-        if (targetRoom) {
-          setSelectedRoom(targetRoom);
-          setTimeout(() => {
-            const element = document.getElementById(`msg-${messageId}`);
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              element.classList.add('highlight-message');
-              setTimeout(() => {
-                element.classList.remove('highlight-message');
-              }, 2000);
-            }
-          }, 800);
-          return;
-        }
-      }
-      const element = document.getElementById(`msg-${messageId}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element.classList.add('highlight-message');
-        setTimeout(() => {
-          element.classList.remove('highlight-message');
-        }, 2000);
-      }
-    };
-
-    const formatMessageTimestamp = (dateString: string) => {
-      const date = new Date(dateString);
-      const now = new Date();
-      const isToday = date.getDate() === now.getDate() &&
-                      date.getMonth() === now.getMonth() &&
-                      date.getFullYear() === now.getFullYear();
-      const yesterday = new Date(now);
-      yesterday.setDate(now.getDate() - 1);
-      const isYesterday = date.getDate() === yesterday.getDate() &&
-                          date.getMonth() === yesterday.getMonth() &&
-                          date.getFullYear() === yesterday.getFullYear();
-                          
-      const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      if (isToday) {
-        return timeStr;
-      } else if (isYesterday) {
-        return `Yesterday`;
-      } else {
-        return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + timeStr;
-      }
-    };
-
-    useEffect(() => {
-      if (showStarredPanel) {
-        fetchStarredMessages();
-      }
-    }, [showStarredPanel]);
-
+  // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        Loading...
+      <div
+        className="h-screen flex flex-col items-center justify-center gap-4"
+        style={{ background: "var(--bg-app)" }}
+      >
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center"
+          style={{ background: "var(--accent)" }}
+        >
+          <Zap size={22} className="text-white" fill="white" />
+        </div>
+        <svg
+          className="animate-spin w-8 h-8"
+          viewBox="0 0 32 32"
+          fill="none"
+        >
+          <circle
+            cx="16"
+            cy="16"
+            r="12"
+            stroke="var(--border)"
+            strokeWidth="3"
+          />
+          <path
+            d="M28 16C28 9.3 22.6 4 16 4"
+            stroke="var(--accent)"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        </svg>
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Connecting…
+        </p>
       </div>
     );
   }
 
+  /* ── RENDER ──────────────────────────────────────────────────────────────── */
+  const activeRooms = allRooms.filter(
+    (room: any) => !archivedRoomIds.includes(room._id)
+  );
+  const archivedRooms = allRooms.filter((room: any) =>
+    archivedRoomIds.includes(room._id)
+  );
+
   return (
-    <main className="h-screen bg-zinc-950 flex gap-4 p-4">
+    <main
+      className="h-screen flex overflow-hidden"
+      style={{ background: "var(--bg-app)" }}
+    >
+      {/* ══ MOBILE OVERLAY ════════════════════════════════════════════════ */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 md:hidden"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
 
-      {/* LEFT SIDEBAR */}
-      <div className="w-80 h-full bg-zinc-900 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden">
-
-        {/* User */}
-        <div className="p-5 border-b border-zinc-800">
-          <h1 className="text-2xl font-bold text-white">
-            Zync
-          </h1>
-
-          <p className="text-zinc-400 text-sm mt-1">
-            {user?.email}
-          </p>
-        </div>
-
-        {/* Create Room */}
-        <div className="p-4 border-b border-zinc-800">
-          <h2 className="text-white font-semibold mb-3">
-            Create Room
-          </h2>
-
-          <form
-            onSubmit={handleRoomCreation}
-            className="space-y-3"
+      {/* ══ LEFT SIDEBAR ══════════════════════════════════════════════════ */}
+      <aside
+        className={`
+          fixed md:static inset-y-0 left-0 z-40 md:z-auto
+          flex flex-col w-72 shrink-0 border-r h-full
+          transform transition-transform duration-200
+          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        `}
+        style={{
+          background: "var(--bg-sidebar)",
+          borderColor: "var(--border-subtle)",
+        }}
+      >
+        {/* Logo */}
+        <div
+          className="px-4 h-14 flex items-center gap-2.5 border-b shrink-0"
+          style={{ borderColor: "var(--border-subtle)" }}
+        >
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: "var(--accent)" }}
           >
-            <input
-              type="text"
-              placeholder="Room Name"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              className="w-full rounded-lg bg-zinc-800 text-white px-3 py-2 border border-zinc-700 outline-none"
-            />
-
-            <select
-              value={roomType}
-              onChange={(e) => setRoomType(e.target.value)}
-              className="w-full rounded-lg bg-zinc-800 text-white px-3 py-2 border border-zinc-700"
-            >
-              <option value="">Select Type</option>
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-            </select>
-
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg py-2 text-white"
-            >
-              + Create Room
-            </button>
-          </form>
+            <Zap size={14} className="text-white" fill="white" />
+          </div>
+          <span
+            className="text-base font-semibold tracking-tight"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Axion
+          </span>
         </div>
 
-        {/* Rooms */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div>
-            <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
-              Rooms
-            </h2>
+        {/* Rooms header + create button */}
+        <div
+          className="px-3 py-2.5 flex items-center justify-between"
+          style={{ borderBottom: `1px solid var(--border-subtle)` }}
+        >
+          <span
+            className="text-[11px] uppercase tracking-wider font-semibold"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Channels
+          </span>
+          <button
+            onClick={() => setShowCreateRoom(true)}
+            className="w-6 h-6 rounded-md flex items-center justify-center transition-all hover:bg-[var(--bg-surface-hover)]"
+            style={{ color: "var(--text-muted)" }}
+            title="Create room"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
 
-            <div className="space-y-2">
-              {allRooms
-                .filter((room: any) => !archivedRoomIds.includes(room._id))
-                .map((room: any) => {
-                  const isMuted = mutedRoomIds.includes(room._id);
+        {/* Room list */}
+        <div className="flex-1 overflow-y-auto py-2">
+          {/* Active rooms */}
+          {activeRooms.map((room: any) => {
+            const isMuted = mutedRoomIds.includes(room._id);
+            const isActive = selectedRoom?._id === room._id;
+            const unread = unreadMessageCount[room._id];
+            return (
+              <button
+                key={room._id}
+                onClick={() => setSelectedRoom(room)}
+                className={`room-item w-full text-left px-3 py-2 flex items-center gap-2.5 rounded-lg mx-1 my-0.5 relative group`}
+                style={{
+                  width: "calc(100% - 8px)",
+                  background: isActive
+                    ? "var(--accent-muted)"
+                    : "transparent",
+                  color: isActive
+                    ? "var(--accent-hover)"
+                    : "var(--text-secondary)",
+                }}
+              >
+                {/* Active bar */}
+                {isActive && (
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4/5 rounded-full"
+                    style={{
+                      background: "var(--accent)",
+                      left: "-4px",
+                    }}
+                  />
+                )}
+                {/* Icon */}
+                <span
+                  className="shrink-0"
+                  style={{
+                    color: isActive
+                      ? "var(--accent-hover)"
+                      : "var(--text-muted)",
+                  }}
+                >
+                  {room.type === "private" ? (
+                    <Lock size={14} />
+                  ) : (
+                    <Hash size={14} />
+                  )}
+                </span>
+                {/* Name */}
+                <span className="flex-1 text-sm truncate font-medium">
+                  {room.name}
+                </span>
+                {/* Mute icon */}
+                {isMuted && (
+                  <VolumeX
+                    size={12}
+                    className="shrink-0"
+                    style={{ color: "var(--text-muted)" }}
+                  />
+                )}
+                {/* Unread badge */}
+                {!!unread && (
+                  <span
+                    className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center"
+                    style={{
+                      background: isMuted
+                        ? "var(--offline)"
+                        : "var(--accent)",
+                      color: "white",
+                    }}
+                  >
+                    {unread}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Archived section */}
+          {archivedRooms.length > 0 && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowArchivedSection((v) => !v)}
+                className="w-full px-3 py-1.5 flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold hover:text-[var(--text-secondary)] transition-colors"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {showArchivedSection ? (
+                  <ChevronDown size={12} />
+                ) : (
+                  <ChevronRight size={12} />
+                )}
+                Archived ({archivedRooms.length})
+              </button>
+              {showArchivedSection &&
+                archivedRooms.map((room: any) => {
+                  const isActive = selectedRoom?._id === room._id;
+                  const unread = unreadMessageCount[room._id];
                   return (
                     <button
                       key={room._id}
                       onClick={() => setSelectedRoom(room)}
-                      className={`w-full text-left px-4 py-3 rounded-xl transition flex justify-between items-center ${
-                        selectedRoom?._id === room._id
-                          ? "bg-blue-600 text-white"
-                          : "bg-zinc-800 text-white hover:bg-zinc-700"
-                      }`}
+                      className="room-item w-full text-left px-3 py-2 flex items-center gap-2.5 rounded-lg mx-1 my-0.5 opacity-60 hover:opacity-100"
+                      style={{
+                        width: "calc(100% - 8px)",
+                        background: isActive
+                          ? "var(--accent-muted)"
+                          : "transparent",
+                        color: isActive
+                          ? "var(--accent-hover)"
+                          : "var(--text-muted)",
+                      }}
                     >
-                      <div className="flex-1 min-w-0 pr-2">
-                        <div className="font-medium flex items-center gap-1.5 truncate">
-                          <span># {room.name}</span>
-                          {isMuted && (
-                            <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6L4.5 9H1.5v6h3l4.5 3.75V5.25z" />
-                            </svg>
-                          )}
-                        </div>
-
-                        <div className="text-xs opacity-70">
-                          {room.type}
-                        </div>
-                      </div>
-                      {unreadMessageCount[room._id] ? (
-                        <div className={`${isMuted ? "bg-zinc-600" : "bg-red-500"} text-white text-xs font-bold px-2 py-1 rounded-full min-w-[1.5rem] text-center shrink-0`}>
-                          {unreadMessageCount[room._id]}
-                        </div>
-                      ) : null}
+                      {room.type === "private" ? (
+                        <Lock size={14} className="shrink-0" />
+                      ) : (
+                        <Hash size={14} className="shrink-0" />
+                      )}
+                      <span className="flex-1 text-sm truncate font-medium">
+                        {room.name}
+                      </span>
+                      {!!unread && (
+                        <span
+                          className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center"
+                          style={{
+                            background: "var(--offline)",
+                            color: "white",
+                          }}
+                        >
+                          {unread}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
             </div>
-          </div>
+          )}
 
-          {/* Archived Section */}
-          {allRooms.some((room: any) => archivedRoomIds.includes(room._id)) && (
-            <div>
+          {activeRooms.length === 0 && archivedRooms.length === 0 && (
+            <div
+              className="text-center text-xs py-10 px-4"
+              style={{ color: "var(--text-muted)" }}
+            >
+              No rooms yet.{" "}
               <button
-                onClick={() => setShowArchivedSection(!showArchivedSection)}
-                className="w-full flex items-center justify-between text-xs uppercase tracking-wider text-zinc-500 mb-2 hover:text-zinc-300 transition"
+                onClick={() => setShowCreateRoom(true)}
+                className="underline"
+                style={{ color: "var(--accent-hover)" }}
               >
-                <span>Archived Rooms ({allRooms.filter((room: any) => archivedRoomIds.includes(room._id)).length})</span>
-                <svg className={`w-3.5 h-3.5 transform transition-transform ${showArchivedSection ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
+                Create one
               </button>
-
-              {showArchivedSection && (
-                <div className="space-y-2 pl-1">
-                  {allRooms
-                    .filter((room: any) => archivedRoomIds.includes(room._id))
-                    .map((room: any) => {
-                      const isMuted = mutedRoomIds.includes(room._id);
-                      return (
-                        <button
-                          key={room._id}
-                          onClick={() => setSelectedRoom(room)}
-                          className={`w-full text-left px-4 py-2.5 rounded-xl transition flex justify-between items-center ${
-                            selectedRoom?._id === room._id
-                              ? "bg-blue-600 text-white"
-                              : "bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700/60"
-                          }`}
-                        >
-                          <div className="flex-1 min-w-0 pr-2">
-                            <div className="font-medium flex items-center gap-1.5 text-sm truncate">
-                              <span># {room.name}</span>
-                              {isMuted && (
-                                <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6L4.5 9H1.5v6h3l4.5 3.75V5.25z" />
-                                </svg>
-                              )}
-                            </div>
-                            <div className="text-[11px] opacity-70">
-                              {room.type}
-                            </div>
-                          </div>
-                          {unreadMessageCount[room._id] ? (
-                            <div className={`${isMuted ? "bg-zinc-600" : "bg-red-500"} text-white text-xs font-bold px-2 py-1 rounded-full min-w-[1.5rem] text-center shrink-0`}>
-                              {unreadMessageCount[room._id]}
-                            </div>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                </div>
-              )}
             </div>
           )}
         </div>
-      </div>
 
-      {/* CHAT AREA */}
-      <div className="flex-1 bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
+        {/* User panel at bottom */}
+        <div
+          className="px-3 py-3 border-t flex items-center gap-2.5 shrink-0"
+          style={{ borderColor: "var(--border-subtle)" }}
+        >
+          <Avatar
+            username={user?.username || "?"}
+            avatarUrl={user?.avatar}
+            size="sm"
+          />
+          <div className="flex-1 min-w-0">
+            <p
+              className="text-sm font-medium truncate"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {user?.username}
+            </p>
+            <p
+              className="text-xs truncate"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {user?.email}
+            </p>
+          </div>
+          <StatusDot status="online" pulse size="sm" />
+        </div>
+      </aside>
 
-        {/* Header */}
-        <div className="border-b px-6 py-4 flex justify-between items-center bg-white relative">
-          <div>
+      {/* ══ CENTER AREA ═══════════════════════════════════════════════════ */}
+      <div className="flex-1 flex flex-col min-w-0 h-full">
+        {/* Chat header */}
+        <header
+          className="h-14 flex items-center justify-between px-4 border-b shrink-0"
+          style={{
+            background: "var(--bg-sidebar)",
+            borderColor: "var(--border-subtle)",
+          }}
+        >
+          {/* Left: hamburger (mobile) + room name */}
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              className="md:hidden p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
+              style={{ color: "var(--text-muted)" }}
+              onClick={() => setMobileSidebarOpen(true)}
+            >
+              <Menu size={18} />
+            </button>
+
             {selectedRoom ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span style={{ color: "var(--text-muted)" }}>
+                  {selectedRoom.type === "private" ? (
+                    <Lock size={15} />
+                  ) : (
+                    <Hash size={15} />
+                  )}
+                </span>
                 {isRenaming ? (
                   <form
                     onSubmit={(e) => {
@@ -934,13 +1193,14 @@ export default function ChatPage() {
                       type="text"
                       value={renameInput}
                       onChange={(e) => setRenameInput(e.target.value)}
-                      className="border border-zinc-300 rounded-lg px-2.5 py-1 text-black text-sm outline-none focus:border-blue-500"
-                      placeholder="Room Name"
+                      className="axion-input py-1 px-2 text-sm w-40"
+                      placeholder="Room name"
                       autoFocus
                     />
                     <button
                       type="submit"
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium"
+                      className="text-xs px-2.5 py-1 rounded-lg font-semibold text-white"
+                      style={{ background: "var(--accent)" }}
                     >
                       Save
                     </button>
@@ -950,598 +1210,1275 @@ export default function ChatPage() {
                         setIsRenaming(false);
                         setRenameInput("");
                       }}
-                      className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs px-2.5 py-1.5 rounded-lg font-medium"
+                      className="text-xs px-2.5 py-1 rounded-lg"
+                      style={{
+                        background: "var(--bg-surface-hover)",
+                        color: "var(--text-secondary)",
+                      }}
                     >
                       Cancel
                     </button>
                   </form>
                 ) : (
-                  <h1 className="text-xl font-semibold text-black flex items-center gap-1.5">
-                    <span>{selectedRoom.name}</span>
+                  <h1
+                    className="text-sm font-semibold tracking-tight truncate"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {selectedRoom.name}
+                  </h1>
+                )}
+                <span
+                  className="text-xs shrink-0"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  {members.length} member{members.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+            ) : (
+              <h1
+                className="text-sm font-semibold"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Select a channel
+              </h1>
+            )}
+          </div>
+
+          {/* Right actions */}
+          {selectedRoom && (
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Starred toggle */}
+              <button
+                onClick={() => setShowStarredPanel((v) => !v)}
+                className="p-2 rounded-lg transition-all"
+                style={{
+                  background: showStarredPanel
+                    ? "var(--accent-muted)"
+                    : "transparent",
+                  color: showStarredPanel
+                    ? "var(--accent-hover)"
+                    : "var(--text-muted)",
+                }}
+                title="Starred messages"
+              >
+                <Star size={16} fill={showStarredPanel ? "currentColor" : "none"} />
+              </button>
+
+              {/* Members toggle */}
+              <button
+                onClick={() => setShowMembersPanel((v) => !v)}
+                className="p-2 rounded-lg transition-all"
+                style={{
+                  background: showMembersPanel
+                    ? "var(--accent-muted)"
+                    : "transparent",
+                  color: showMembersPanel
+                    ? "var(--accent-hover)"
+                    : "var(--text-muted)",
+                }}
+                title="Members"
+              >
+                <Users size={16} />
+              </button>
+
+              {/* Room settings dropdown */}
+              <div className="relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRoomSettings((v) => !v);
+                  }}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-all"
+                  style={{ color: "var(--text-muted)" }}
+                  title="Room settings"
+                >
+                  <MoreHorizontal size={16} />
+                </button>
+
+                {showRoomSettings && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-0 mt-1 w-52 rounded-xl border py-1.5 z-50 shadow-2xl"
+                    style={{
+                      background: "var(--bg-surface)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    {/* Mute */}
+                    <DropdownItem
+                      icon={
+                        mutedRoomIds.includes(selectedRoom._id) ? (
+                          <Volume2 size={14} />
+                        ) : (
+                          <VolumeX size={14} />
+                        )
+                      }
+                      label={
+                        mutedRoomIds.includes(selectedRoom._id)
+                          ? "Unmute Room"
+                          : "Mute Room"
+                      }
+                      onClick={() => {
+                        handleMuteRoom(selectedRoom._id);
+                        setShowRoomSettings(false);
+                      }}
+                    />
+                    {/* Archive */}
+                    <DropdownItem
+                      icon={<Archive size={14} />}
+                      label={
+                        archivedRoomIds.includes(selectedRoom._id)
+                          ? "Unarchive Room"
+                          : "Archive Room"
+                      }
+                      onClick={() => handleArchiveRoom(selectedRoom._id)}
+                    />
+                    {/* Clear chat */}
+                    <DropdownItem
+                      icon={<Trash2 size={14} />}
+                      label="Clear Chat"
+                      onClick={() => {
+                        setShowClearConfirm(true);
+                        setShowRoomSettings(false);
+                      }}
+                    />
+                    {/* Rename (admin only) */}
                     {isAdmin && (
-                      <button
+                      <DropdownItem
+                        icon={<Pencil size={14} />}
+                        label="Rename Room"
                         onClick={() => {
                           setIsRenaming(true);
                           setRenameInput(selectedRoom.name);
+                          setShowRoomSettings(false);
                         }}
-                        className="text-zinc-400 hover:text-zinc-600 transition p-1 hover:bg-zinc-100 rounded-full"
-                        title="Rename Room"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
+                      />
                     )}
-                  </h1>
+
+                    <div
+                      className="my-1.5 border-t"
+                      style={{ borderColor: "var(--border-subtle)" }}
+                    />
+
+                    {/* Leave */}
+                    <DropdownItem
+                      icon={<LogOut size={14} />}
+                      label="Leave Room"
+                      danger
+                      onClick={() => {
+                        setShowLeaveConfirm(true);
+                        setShowRoomSettings(false);
+                      }}
+                    />
+
+                    {/* Delete (admin only) */}
+                    {isAdmin && (
+                      <DropdownItem
+                        icon={<Trash2 size={14} />}
+                        label="Delete Room"
+                        danger
+                        onClick={() => {
+                          setShowDeleteConfirm(true);
+                          setShowRoomSettings(false);
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
-            ) : (
-              <h1 className="text-xl font-semibold text-black">Select Room</h1>
-            )}
+            </div>
+          )}
+        </header>
 
-            <p className="text-sm text-zinc-500">
-              {selectedRoom?.type || "Room"}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {selectedRoom && (
-              <>
-                {/* Starred Messages Panel Toggle */}
-                <button
-                  onClick={() => setShowStarredPanel(!showStarredPanel)}
-                  className={`p-2 rounded-full transition ${showStarredPanel ? "bg-amber-100 text-amber-600" : "text-zinc-500 hover:bg-zinc-100"}`}
-                  title="Starred Messages"
+        {/* Pinned message banner */}
+        {selectedRoom &&
+          messages.filter((m) => m.isPinned).length > 0 && (
+            <div
+              className="flex items-center justify-between px-4 py-2 text-xs border-b shrink-0"
+              style={{
+                background: "rgba(99,102,241,0.06)",
+                borderColor: "rgba(99,102,241,0.18)",
+              }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Pin
+                  size={12}
+                  style={{ color: "var(--accent)", flexShrink: 0 }}
+                />
+                <span
+                  className="truncate"
+                  style={{ color: "var(--text-secondary)" }}
                 >
-                  <svg className="w-5 h-5" fill={showStarredPanel ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.907c.961 0 1.36 1.246.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.773-.564-.373-1.81.588-1.81h4.906a1 1 0 00.95-.69l1.519-4.674z" />
-                  </svg>
-                </button>
-
-                {/* Room Options Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowRoomSettings(!showRoomSettings);
-                    }}
-                    className="p-2 text-zinc-500 hover:bg-zinc-100 rounded-full transition"
-                    title="Room Settings"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                  </button>
-
-                  {showRoomSettings && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-xl shadow-lg py-1.5 z-50"
-                    >
-                      <button
-                        onClick={() => {
-                          handleMuteRoom(selectedRoom._id);
-                          setShowRoomSettings(false);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
-                        </svg>
-                        <span>{mutedRoomIds.includes(selectedRoom._id) ? "Unmute Room" : "Mute Room"}</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          handleArchiveRoom(selectedRoom._id);
-                          setShowRoomSettings(false);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                        </svg>
-                        <span>{archivedRoomIds.includes(selectedRoom._id) ? "Unarchive Room" : "Archive Room"}</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          handleClearChat(selectedRoom._id);
-                          setShowRoomSettings(false);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        <span>Clear Chat</span>
-                      </button>
-
-                      <div className="border-t border-zinc-100 my-1"></div>
-
-                      <button
-                        onClick={() => {
-                          handleLeaveRoom(selectedRoom._id);
-                          setShowRoomSettings(false);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        <span>Leave Room</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            <div className="text-sm text-zinc-500">
-              {members.length} Members
-            </div>
-          </div>
-        </div>
-
-        {/* Pinned Messages Banner */}
-        {selectedRoom && messages.filter(m => m.isPinned).length > 0 && (
-          <div className="bg-blue-50 border-b border-blue-100 px-6 py-2.5 flex items-center justify-between text-xs text-blue-900 z-10 shrink-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              <span className="truncate">
-                Pinned: <strong className="font-semibold">{messages.filter(m => m.isPinned)[messages.filter(m => m.isPinned).length - 1].content}</strong>
-              </span>
-            </div>
-            <div className="flex items-center gap-3 shrink-0 ml-3">
-              <button
-                onClick={() => {
-                  const pinnedList = messages.filter(m => m.isPinned);
-                  if (pinnedList.length > 0) {
-                    scrollToMessage(pinnedList[pinnedList.length - 1]._id);
-                  }
-                }}
-                className="underline font-semibold hover:text-blue-950 transition"
-              >
-                Jump
-              </button>
-              {isAdmin && (
+                  <span style={{ color: "var(--text-muted)" }}>Pinned: </span>
+                  <span className="font-semibold">
+                    {
+                      messages
+                        .filter((m) => m.isPinned)
+                        .at(-1)?.content
+                    }
+                  </span>
+                </span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0 ml-3">
                 <button
                   onClick={() => {
-                    const pinnedList = messages.filter(m => m.isPinned);
-                    if (pinnedList.length > 0) {
-                      handlePinMessage(pinnedList[pinnedList.length - 1]._id, false);
-                    }
+                    const pinnedList = messages.filter((m) => m.isPinned);
+                    if (pinnedList.length > 0)
+                      scrollToMessage(pinnedList.at(-1)!._id);
                   }}
-                  className="text-[10px] text-blue-700 hover:text-blue-950 hover:underline transition"
+                  className="font-semibold hover:underline transition"
+                  style={{ color: "var(--accent-hover)" }}
                 >
-                  Unpin
+                  Jump
                 </button>
-              )}
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      const pinnedList = messages.filter((m) => m.isPinned);
+                      if (pinnedList.length > 0)
+                        handlePinMessage(pinnedList.at(-1)!._id, false);
+                    }}
+                    className="hover:underline transition"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Unpin
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 bg-zinc-50 space-y-4">
-          {messages.map((message) => {
-            const isMe = message.sender._id === user?.id;
+        {/* Messages area */}
+        <div
+          className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
+          style={{ background: "var(--bg-app)" }}
+        >
+          {!selectedRoom && (
+            <div
+              className="h-full flex flex-col items-center justify-center text-center gap-3"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <Hash size={40} className="opacity-30" />
+              <p className="text-sm">Select a channel to start chatting</p>
+            </div>
+          )}
+
+          {selectedRoom && messages.length === 0 && (
+            <div
+              className="h-full flex flex-col items-center justify-center text-center gap-3"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <MessageIconPlaceholder />
+              <p className="text-sm">
+                No messages yet — be the first to say something!
+              </p>
+            </div>
+          )}
+
+          {messages.map((message, idx) => {
+            // ── "is this message mine?" check ──────────────────────────────
+            const currentUserId = String(user?.id || user?._id || "");
+            const msgSenderId = getSenderId(message.sender);
+            
+            // Avoid undefined === undefined by checking if both are truthy
+            const isMe = Boolean(currentUserId && msgSenderId && msgSenderId === currentUserId);
+
+            // Group consecutive messages from the same sender (< 5 min apart)
+            const prevMsg = messages[idx - 1];
+            const isGrouped =
+              prevMsg &&
+              getSenderId(prevMsg.sender) === msgSenderId &&
+              new Date(message.createdAt).getTime() -
+                new Date(prevMsg.createdAt).getTime() <
+                5 * 60 * 1000;
+
+            const isHovered = hoveredMsgId === message._id;
+
             return (
               <div
                 key={message._id}
                 id={`msg-${message._id}`}
+                onMouseEnter={() => setHoveredMsgId(message._id)}
+                onMouseLeave={() => setHoveredMsgId(null)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setContextMenu({ x: e.clientX, y: e.clientY, message });
                 }}
-                className={`flex group py-1 px-2 rounded-xl transition-all duration-300 ${isMe ? "justify-end" : "justify-start"}`}
+                className="message-enter"
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: isMe ? "flex-end" : "flex-start",
+                  alignItems: "flex-start",
+                  padding: "4px 8px",
+                  borderRadius: "12px",
+                  background: isHovered ? "var(--bg-surface-hover)" : "transparent",
+                  transition: "background 0.1s ease",
+                  outline: message.isPinned ? "1px solid var(--accent-muted)" : "none",
+                }}
               >
-                <div className="relative flex flex-col max-w-[70%]">
+                {/* Avatar — received messages only, first in group */}
+                {!isMe && (
+                  <div style={{ width: 32, flexShrink: 0, marginRight: 8, display: "flex", alignItems: "flex-end" }}>
+                    {!isGrouped ? (
+                      <Avatar
+                        username={message.sender?.username || "Unknown"}
+                        avatarUrl={message.sender?.avatar}
+                        size="sm"
+                      />
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Content column */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: isMe ? "flex-end" : "flex-start",
+                    maxWidth: "70%",
+                  }}
+                >
+                  {/* Sender name — first in group, received only */}
+                  {!isMe && !isGrouped && (
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        marginBottom: 4,
+                        marginLeft: 4,
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      {message.sender?.username || "Unknown"}
+                    </span>
+                  )}
+
+                  {/* Pin badge */}
                   {message.isPinned && (
-                    <div className={`flex items-center gap-1 text-[10px] text-zinc-400 mb-1 px-1 ${isMe ? "justify-end" : "justify-start"}`}>
-                      <svg className="w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                      <span>Pinned Message</span>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 10,
+                        marginBottom: 2,
+                        justifyContent: isMe ? "flex-end" : "flex-start",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      <Pin size={10} />
+                      <span>Pinned</span>
                     </div>
                   )}
 
+                  {/* Bubble + action buttons row */}
                   <div
-                    className={`rounded-2xl px-4 py-3 shadow-sm w-full ${isMe
-                      ? "bg-blue-600 text-white rounded-br-sm"
-                      : "bg-white border border-zinc-100 text-black rounded-bl-sm"
-                      }`}
+                    style={{
+                      display: "flex",
+                      flexDirection: isMe ? "row-reverse" : "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
                   >
-                    <div>
+                    {/* ── Bubble ── */}
+                    <div
+                      style={{
+                        background: isMe ? "var(--accent)" : "var(--bg-surface)",
+                        color: isMe ? "white" : "var(--text-primary)",
+                        border: isMe ? "none" : "1px solid var(--border-subtle)",
+                        borderRadius: 16,
+                        borderBottomRightRadius: isMe ? 4 : 16,
+                        borderBottomLeftRadius: isMe ? 16 : 4,
+                        padding: "10px 14px",
+                        fontSize: 15,
+                        lineHeight: 1.6,
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {/* Reply-to preview */}
                       {message.replyTo && (
                         <div
                           onClick={(e) => {
                             e.stopPropagation();
                             scrollToMessage(message.replyTo._id);
                           }}
-                          className={`border-l-4 rounded p-2 mb-2 text-sm cursor-pointer hover:opacity-80 transition ${
-                            isMe ? 'border-white/50 bg-black/10 text-white' : 'border-blue-500 bg-zinc-100 text-black'
-                          }`}
+                          style={{
+                            background: isMe ? "rgba(0,0,0,0.15)" : "var(--bg-surface-hover)",
+                            borderLeft: `2px solid ${isMe ? "rgba(255,255,255,0.4)" : "var(--accent)"}`,
+                            borderRadius: 8,
+                            padding: "6px 8px",
+                            marginBottom: 8,
+                            cursor: "pointer",
+                          }}
                         >
-                          <p className={`font-semibold text-xs ${isMe ? 'text-white' : 'text-blue-600'}`}>
+                          <p
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              marginBottom: 2,
+                              color: isMe ? "rgba(255,255,255,0.8)" : "var(--accent-hover)",
+                            }}
+                          >
                             {message.replyTo.sender?.username}
                           </p>
-                          <p className={`text-xs mt-0.5 line-clamp-2 ${isMe ? 'text-blue-100' : 'text-zinc-600'}`}>
+                          <p
+                            style={{
+                              fontSize: 11,
+                              color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-muted)",
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
                             {message.replyTo.content}
                           </p>
                         </div>
                       )}
 
-                      <p className={`text-[15px] leading-relaxed break-words ${message.isDeleted ? 'italic text-zinc-400' : ''}`}>
-                        {message.content}
-                      </p>
+                      {/* Message text */}
+                      {message.isDeleted ? (
+                        <p style={{ fontStyle: "italic", fontSize: 13, color: isMe ? "rgba(255,255,255,0.5)" : "var(--text-muted)" }}>
+                          This message was deleted
+                        </p>
+                      ) : (
+                        <p style={{ margin: 0 }}>{message.content}</p>
+                      )}
+
+                      {/* Timestamp + status */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, marginTop: 4 }}>
+                        <span style={{ fontSize: 10, color: isMe ? "rgba(255,255,255,0.5)" : "var(--text-muted)" }}>
+                          {formatMessageTimestamp(message.createdAt)}
+                        </span>
+                        {message.isEdited && !message.isDeleted && (
+                          <span style={{ fontSize: 10, color: isMe ? "rgba(255,255,255,0.4)" : "var(--text-muted)" }}>
+                            (edited)
+                          </span>
+                        )}
+                        <DeliveryTick status={message.status} isMe={isMe} />
+                      </div>
                     </div>
 
-                    <div className={`mt-1.5 text-[10px] flex justify-end items-center gap-1 ${isMe ? 'text-blue-200' : 'text-zinc-400'}`}>
-                      <span>{formatMessageTimestamp(message.createdAt)}</span>
-                      {message.isEdited && <span className="opacity-70">(edited)</span>}
-                      {isMe && <span>{message.status === 'seen' ? '✓✓' : '✓'}</span>}
-                    </div>
+                    {/* ── Action buttons (appear on hover) ── */}
+                    {!message.isDeleted && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          flexShrink: 0,
+                          opacity: isHovered ? 1 : 0,
+                          transition: "opacity 0.15s ease",
+                        }}
+                      >
+                        {/* Reply */}
+                        <button
+                          onClick={() => {
+                            setReplyingTo(message);
+                            setTimeout(() => inputRef.current?.focus(), 50);
+                          }}
+                          title="Reply"
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 8,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "var(--bg-surface)",
+                            border: "1px solid var(--border)",
+                            color: "var(--text-muted)",
+                            cursor: "pointer",
+                            transition: "transform 0.1s ease",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
+                          onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+                        >
+                          <Reply size={13} />
+                        </button>
+
+                        {/* Edit — own messages only */}
+                        {msgSenderId === String(user?.id || user?._id) && (
+                          <button
+                            onClick={() => {
+                              setEditingMessageId(message._id);
+                              setInput(message.content);
+                              setTimeout(() => inputRef.current?.focus(), 50);
+                            }}
+                            title="Edit message"
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 8,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              background: "var(--bg-surface)",
+                              border: "1px solid var(--border)",
+                              color: "var(--text-muted)",
+                              cursor: "pointer",
+                              transition: "transform 0.1s ease",
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
+                            onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        )}
+
+                        {/* More actions */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setContextMenu({ x: rect.left, y: rect.bottom + 4, message });
+                          }}
+                          title="More actions"
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 8,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "var(--bg-surface)",
+                            border: "1px solid var(--border)",
+                            color: "var(--text-muted)",
+                            cursor: "pointer",
+                            transition: "transform 0.1s ease",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
+                          onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+                        >
+                          <MoreHorizontal size={13} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             );
           })}
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Message Input */}
-        {editingMessageId ? (
-          <div className="border-t bg-zinc-50/90 px-6 py-2.5 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-8 bg-blue-500 rounded-full"></div>
-              <div>
-                <p className="text-xs font-semibold text-blue-600">
-                  Editing Message
+        {/* Typing indicator */}
+        <TypingIndicator users={typingUsers} />
+
+        {/* Reply / edit preview bar */}
+        {(editingMessageId || replyingTo) && (
+          <div
+            className="px-4 py-2.5 border-t flex items-center justify-between gap-3"
+            style={{
+              background: "var(--bg-sidebar)",
+              borderColor: "var(--border-subtle)",
+            }}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="w-0.5 h-8 rounded-full shrink-0"
+                style={{ background: "var(--accent)" }}
+              />
+              <div className="min-w-0">
+                <p
+                  className="text-xs font-semibold"
+                  style={{ color: "var(--accent-hover)" }}
+                >
+                  {editingMessageId
+                    ? "Editing message"
+                    : `Replying to ${replyingTo?.sender?.username}`}
                 </p>
-                <p className="text-sm text-zinc-600 line-clamp-1">
-                  {input}
+                <p
+                  className="text-xs truncate"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  {editingMessageId ? input : replyingTo?.content}
                 </p>
               </div>
             </div>
             <button
               onClick={() => {
                 setEditingMessageId(null);
+                setReplyingTo(null);
                 setInput("");
               }}
-              className="text-zinc-400 hover:text-zinc-600 transition-colors p-2 rounded-full hover:bg-zinc-200"
+              className="p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
+              style={{ color: "var(--text-muted)" }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
-        ) : replyingTo && (
-          <div className="border-t bg-zinc-50/90 px-6 py-2.5 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-8 bg-blue-500 rounded-full"></div>
-              <div>
-                <p className="text-xs font-semibold text-blue-600">
-                  Replying to {replyingTo.sender.username}
-                </p>
-                <p className="text-sm text-zinc-600 line-clamp-1">
-                  {replyingTo.content}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setReplyingTo(null)}
-              className="text-zinc-400 hover:text-zinc-600 transition-colors p-2 rounded-full hover:bg-zinc-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <X size={14} />
             </button>
           </div>
         )}
 
+        {/* Message input */}
         <form
           onSubmit={sendMessage}
-          className="border-t bg-white p-4 flex gap-3"
+          className="px-4 py-3 border-t shrink-0"
+          style={{
+            background: "var(--bg-sidebar)",
+            borderColor: "var(--border-subtle)",
+          }}
         >
-          {typingUsers.length > 0 && (
-            <div className="px-6 py-2 text-sm italic text-zinc-500">
-              {typingUsers.length === 1
-                ? `${typingUsers[0]} is typing...`
-                : `${typingUsers.join(", ")} are typing...`}
-            </div>
-          )}
-          <input
-            type="text"
-            value={input}
-            onChange={handelInputChange}
-            placeholder={`Message #${selectedRoom?.name || "room"}`}
-            className="flex-1 border rounded-xl px-4 py-3 outline-none text-black"
-          />
-
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-xl"
+          <div
+            className="flex items-center gap-2 rounded-xl px-3 py-2 border"
+            style={{
+              background: "var(--bg-input)",
+              borderColor: "var(--border)",
+            }}
           >
-            Send
-          </button>
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={handelInputChange}
+              placeholder={
+                selectedRoom
+                  ? `Message #${selectedRoom.name}`
+                  : "Select a channel"
+              }
+              disabled={!selectedRoom}
+              className="flex-1 bg-transparent outline-none text-sm"
+              style={{ color: "var(--text-primary)" }}
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || !selectedRoom}
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 disabled:opacity-30"
+              style={{ background: "var(--accent)", color: "white" }}
+            >
+              <Send size={14} />
+            </button>
+          </div>
         </form>
       </div>
 
-      {/* RIGHT SIDEBAR */}
-      <div className="w-72 h-full bg-zinc-900 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden">
-
-        <div className="p-4 border-b border-zinc-800">
-          <h2 className="text-lg font-semibold text-white">
-            Members
-          </h2>
-
-          <p className="text-zinc-400 text-sm">
-            {members.length} members
-          </p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-
-          {members.map((member) => (
-            <div
-              key={member.user._id}
-              className="bg-zinc-800 rounded-xl px-3 py-3 flex items-center justify-between"
+      {/* ══ RIGHT SIDEBAR — Members ════════════════════════════════════════ */}
+      {showMembersPanel && (
+        <aside
+          className="w-64 shrink-0 border-l flex flex-col h-full hidden lg:flex"
+          style={{
+            background: "var(--bg-sidebar)",
+            borderColor: "var(--border-subtle)",
+          }}
+        >
+          {/* Header */}
+          <div
+            className="h-14 px-4 flex items-center border-b shrink-0"
+            style={{ borderColor: "var(--border-subtle)" }}
+          >
+            <h2
+              className="text-sm font-semibold tracking-tight"
+              style={{ color: "var(--text-primary)" }}
             >
-              <div>
-      
-                <p className="text-white font-medium">
-                  {member.user.username}
-                </p>
-              <div className="flex gap-10">
- <p className="text-xs text-zinc-400">
-                  {member.user.email}
-                </p>
-                <p className="text-xs text-zinc-400">
-                  {member.role}
-                </p>
-              </div>
-               { isAdmin && member.user._id !== user.id &&(
-                <button onClick={()=>handelRemoveMember(member.user._id)}>
-                  Remove
-                </button>
-               )}
-              </div>
+              Members
+              <span
+                className="ml-1.5 text-xs font-normal"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {members.length}
+              </span>
+            </h2>
+          </div>
 
-              <div className="flex items-center gap-2">
+          {/* Member list */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-1">
+            {members.map((member) => {
+              const isMemberAdmin = member.role === "admin";
+              return (
                 <div
-                  className={`w-2 h-2 rounded-full ${member.user.status === "online"
-                    ? "bg-green-500"
-                    : "bg-zinc-500"
-                    }`}
-                />
-
-                <span className="text-xs text-zinc-400">
-                  {member.status}
-                </span>
-              </div>
-            </div>
-          ))}
-
-          {members.length === 0 && (
-            <div className="text-center text-zinc-500 py-8">
-              No members found
-            </div>
-          )}
-
-          <button onClick={() => { setShowAddMember(true) }}>
-            Add member +
-          </button>
-
-          {showAddMember && (
-            <form
-              onSubmit={handleAddMember}
-              className="mt-3 space-y-2"
-            >
-              <input
-                type="email"
-                placeholder="Enter email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg"
-              />
-
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg"
+                  key={member.user._id}
+                  className="flex items-center gap-2.5 px-2 py-2 rounded-lg group hover:bg-[var(--bg-surface-hover)] transition-all"
                 >
-                  Add
-                </button>
+                  {/* Avatar + status */}
+                  <div className="relative shrink-0">
+                    <Avatar
+                      username={member.user.username}
+                      avatarUrl={member.user.avatar}
+                      size="sm"
+                    />
+                    <div className="absolute -bottom-0.5 -right-0.5">
+                      <StatusDot
+                        status={member.user.status || "offline"}
+                        pulse={member.user.status === "online"}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowAddMember(false)}
-                  className="flex-1 bg-red-600 text-white py-2 rounded-lg"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-           
-           <button onClick={()=> handelLinkGeneration()}>
-             Invite Link
-           </button>
-           {inviteLink &&(
-            <div>
-               {inviteLink}
-            </div>
-           )}
+                  {/* Name + role */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <p
+                        className="text-sm font-medium truncate"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        {member.user.username}
+                      </p>
+                      {isMemberAdmin && (
+                        <Crown
+                          size={11}
+                          style={{ color: "#f59e0b", flexShrink: 0 }}
+                        />
+                      )}
+                    </div>
+                    <p
+                      className="text-xs truncate"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {member.user.status || "offline"}
+                    </p>
+                  </div>
 
-           <div>
-            {isAdmin && (
-              <button onClick={()=> handelRoomDelete(selectedRoom._id)}>
-              Delete Room
-            </button>
+                  {/* Remove (admin, not self) */}
+                  {isAdmin && member.user._id !== user?.id && (
+                    <button
+                      onClick={() => handelRemoveMember(member.user._id)}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-[var(--error-bg)] transition-all"
+                      style={{ color: "var(--error)" }}
+                      title="Remove member"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {members.length === 0 && (
+              <p
+                className="text-xs text-center py-8"
+                style={{ color: "var(--text-muted)" }}
+              >
+                No members
+              </p>
             )}
-            
-           </div>
+          </div>
 
-         </div>
+          {/* Bottom actions */}
+          {selectedRoom && (
+            <div
+              className="p-3 space-y-2 border-t shrink-0"
+              style={{ borderColor: "var(--border-subtle)" }}
+            >
+              {/* Add member button */}
+              <button
+                onClick={() => setShowAddMember(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:bg-[var(--bg-surface-hover)]"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <Plus size={14} />
+                Add member
+              </button>
 
-       </div>
+              {/* Invite link button */}
+              <button
+                onClick={handelLinkGeneration}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:bg-[var(--bg-surface-hover)]"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <Link2 size={14} />
+                Copy invite link
+              </button>
 
-      {/* STARRED MESSAGES PANEL */}
+              {/* Invite link display */}
+              {inviteLink && (
+                <div
+                  className="rounded-lg px-3 py-2 text-xs break-all font-mono cursor-pointer group border"
+                  style={{
+                    background: "var(--bg-surface)",
+                    borderColor: "var(--border)",
+                    color: "var(--text-muted)",
+                  }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteLink);
+                    toast.success("Invite link copied!");
+                  }}
+                >
+                  {inviteLink}
+                </div>
+              )}
+
+              {/* Delete room (admin) */}
+              {isAdmin && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:bg-[var(--error-bg)]"
+                  style={{ color: "var(--error)" }}
+                >
+                  <Trash2 size={14} />
+                  Delete room
+                </button>
+              )}
+            </div>
+          )}
+        </aside>
+      )}
+
+      {/* ══ STARRED MESSAGES PANEL ════════════════════════════════════════ */}
       {showStarredPanel && (
-        <div className="w-80 h-full bg-zinc-900 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden text-white shrink-0">
-          <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <svg className="w-5 h-5 text-amber-500 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-              </svg>
-              <span>Starred Messages</span>
+        <aside
+          className="w-72 shrink-0 border-l flex flex-col h-full hidden xl:flex"
+          style={{
+            background: "var(--bg-sidebar)",
+            borderColor: "var(--border-subtle)",
+          }}
+        >
+          <div
+            className="h-14 px-4 flex items-center justify-between border-b shrink-0"
+            style={{ borderColor: "var(--border-subtle)" }}
+          >
+            <h2
+              className="text-sm font-semibold tracking-tight flex items-center gap-2"
+              style={{ color: "var(--text-primary)" }}
+            >
+              <Star size={14} style={{ color: "#f59e0b" }} fill="#f59e0b" />
+              Starred Messages
             </h2>
             <button
               onClick={() => setShowStarredPanel(false)}
-              className="text-zinc-400 hover:text-white transition p-1 hover:bg-zinc-800 rounded-full"
+              className="p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
+              style={{ color: "var(--text-muted)" }}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X size={14} />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {starredMessages.length === 0 ? (
-              <div className="text-center text-zinc-500 py-8 text-sm">
-                No starred messages yet. Right click a message to star it.
-              </div>
+              <p
+                className="text-xs text-center py-8"
+                style={{ color: "var(--text-muted)" }}
+              >
+                No starred messages yet.
+                <br />
+                Right-click a message to star it.
+              </p>
             ) : (
               starredMessages.map((msg: any) => (
-                <div key={msg._id} className="bg-zinc-800/80 rounded-xl p-3 border border-zinc-700/50 space-y-2 hover:border-zinc-600 transition duration-200">
-                  <div className="flex justify-between items-center text-[10px]">
-                    <span className="font-semibold text-blue-400">{msg.sender?.username}</span>
-                    <span className="text-zinc-500">{new Date(msg.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
-                  </div>
-                  <p className="text-xs text-zinc-200 break-words leading-relaxed">{msg.content}</p>
-                  <div className="flex justify-end gap-3 text-[10px] pt-1">
-                    <button
-                      onClick={() => handleStarMessage(msg._id)}
-                      className="text-red-400 hover:underline font-medium"
+                <div
+                  key={msg._id}
+                  className="rounded-xl border p-3 space-y-2 hover:border-[var(--accent)] transition-all cursor-pointer"
+                  style={{
+                    background: "var(--bg-surface)",
+                    borderColor: "var(--border)",
+                  }}
+                  onClick={() => scrollToMessage(msg._id, msg.roomId)}
+                >
+                  <div className="flex justify-between items-center">
+                    <span
+                      className="text-xs font-semibold"
+                      style={{ color: "var(--accent-hover)" }}
                     >
-                      Unstar
-                    </button>
-                    <button
-                      onClick={() => scrollToMessage(msg._id, msg.roomId)}
-                      className="text-blue-400 hover:underline font-medium"
-                    >
-                      Jump
-                    </button>
+                      {msg.sender?.username}
+                    </span>
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                      {new Date(msg.createdAt).toLocaleDateString([], {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
                   </div>
+                  <p
+                    className="text-xs leading-relaxed break-words"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {msg.content}
+                  </p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStarMessage(msg._id);
+                    }}
+                    className="text-[10px] hover:underline"
+                    style={{ color: "var(--error)" }}
+                  >
+                    Unstar
+                  </button>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </aside>
       )}
 
-      {/* CONTEXT MENU */}
+      {/* ══ CONTEXT MENU ══════════════════════════════════════════════════ */}
       {contextMenu && (
         <div
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          className="fixed bg-white border border-zinc-200 rounded-xl shadow-xl py-1.5 w-44 z-[9999] text-black text-sm"
+          className="fixed rounded-xl py-1.5 w-48 z-[9999] shadow-2xl"
+          style={{
+            top: contextMenu.y,
+            left: contextMenu.x,
+            background: "var(--bg-surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {!contextMenu.message.isDeleted && (
             <>
-              <button
+              <ContextItem
+                icon={<Reply size={13} />}
+                label="Reply"
                 onClick={() => {
                   setReplyingTo(contextMenu.message);
                   setContextMenu(null);
                 }}
-                className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2"
-              >
-                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
-                </svg>
-                <span>Reply</span>
-              </button>
-
-              <button
+              />
+              <ContextItem
+                icon={<Copy size={13} />}
+                label="Copy Message"
                 onClick={() => {
-                  navigator.clipboard.writeText(contextMenu.message.content);
+                  navigator.clipboard.writeText(
+                    contextMenu.message.content
+                  );
+                  toast.success("Copied!");
                   setContextMenu(null);
                 }}
-                className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2"
-              >
-                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-                <span>Copy Message</span>
-              </button>
-
-              <button
+              />
+              <ContextItem
+                icon={
+                  <Star
+                    size={13}
+                    fill={
+                      starredMessageIds.includes(contextMenu.message._id)
+                        ? "#f59e0b"
+                        : "none"
+                    }
+                    stroke={
+                      starredMessageIds.includes(contextMenu.message._id)
+                        ? "#f59e0b"
+                        : "currentColor"
+                    }
+                  />
+                }
+                label={
+                  starredMessageIds.includes(contextMenu.message._id)
+                    ? "Unstar"
+                    : "Star Message"
+                }
                 onClick={() => {
                   handleStarMessage(contextMenu.message._id);
                   setContextMenu(null);
                 }}
-                className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2"
-              >
-                <svg className="w-4 h-4 text-amber-500" fill={starredMessageIds.includes(contextMenu.message._id) ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.907c.961 0 1.36 1.246.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.773-.564-.373-1.81.588-1.81h4.906a1 1 0 00.95-.69l1.519-4.674z" />
-                </svg>
-                <span>{starredMessageIds.includes(contextMenu.message._id) ? "Unstar Message" : "Star Message"}</span>
-              </button>
-
+              />
               {isAdmin && (
-                <button
+                <ContextItem
+                  icon={<Pin size={13} />}
+                  label={
+                    contextMenu.message.isPinned
+                      ? "Unpin Message"
+                      : "Pin Message"
+                  }
                   onClick={() => {
-                    handlePinMessage(contextMenu.message._id, !contextMenu.message.isPinned);
+                    handlePinMessage(
+                      contextMenu.message._id,
+                      !contextMenu.message.isPinned
+                    );
                     setContextMenu(null);
                   }}
-                  className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                  <span>{contextMenu.message.isPinned ? "Unpin Message" : "Pin Message"}</span>
-                </button>
+                />
               )}
 
-              {contextMenu.message.sender._id === user?.id && (
+              {getSenderId(contextMenu.message.sender) === String(user?.id || user?._id) && (
                 <>
-                  <div className="border-t border-zinc-100 my-1"></div>
-                  <button
+                  <div
+                    className="my-1 border-t"
+                    style={{ borderColor: "var(--border-subtle)" }}
+                  />
+                  <ContextItem
+                    icon={<Pencil size={13} />}
+                    label="Edit"
                     onClick={() => {
                       setEditingMessageId(contextMenu.message._id);
                       setInput(contextMenu.message.content);
                       setContextMenu(null);
+                      setTimeout(() => inputRef.current?.focus(), 50);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    <span>Edit</span>
-                  </button>
-
-                  <button
+                  />
+                  <ContextItem
+                    icon={<Trash2 size={13} />}
+                    label="Delete"
+                    danger
                     onClick={() => {
                       handleDeleteMessage(contextMenu.message._id);
                       setContextMenu(null);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    <span>Delete</span>
-                  </button>
+                  />
                 </>
               )}
             </>
           )}
           {contextMenu.message.isDeleted && (
-            <div className="px-4 py-2 text-zinc-400 italic text-xs">
+            <div
+              className="px-4 py-2 text-xs italic"
+              style={{ color: "var(--text-muted)" }}
+            >
               No actions available
             </div>
           )}
         </div>
       )}
 
-     </main>
+      {/* ══ MODALS ════════════════════════════════════════════════════════ */}
+
+      {/* Create Room */}
+      <Modal
+        open={showCreateRoom}
+        onClose={() => setShowCreateRoom(false)}
+        title="Create a channel"
+      >
+        <form onSubmit={handleRoomCreation} className="space-y-4">
+          <div>
+            <label
+              className="block text-sm font-medium mb-1.5"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Channel name
+            </label>
+            <input
+              type="text"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              className="axion-input"
+              placeholder="e.g. general"
+              required
+            />
+          </div>
+          <div>
+            <label
+              className="block text-sm font-medium mb-1.5"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Type
+            </label>
+            <div className="flex gap-2">
+              {(["public", "private"] as const).map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setRoomType(t)}
+                  className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all"
+                  style={{
+                    background:
+                      roomType === t
+                        ? "var(--accent-muted)"
+                        : "var(--bg-surface-hover)",
+                    borderColor:
+                      roomType === t ? "var(--accent)" : "var(--border)",
+                    color:
+                      roomType === t
+                        ? "var(--accent-hover)"
+                        : "var(--text-secondary)",
+                  }}
+                >
+                  {t === "public" ? (
+                    <Hash size={13} />
+                  ) : (
+                    <Lock size={13} />
+                  )}
+                  <span className="capitalize">{t}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowCreateRoom(false)}
+              className="flex-1 py-2.5 rounded-xl text-sm transition-all hover:bg-[var(--bg-surface-hover)]"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all btn-glow"
+              style={{ background: "var(--accent)" }}
+            >
+              Create channel
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Member */}
+      <Modal
+        open={showAddMember}
+        onClose={() => {
+          setShowAddMember(false);
+          setEmail("");
+        }}
+        title="Add member"
+      >
+        <form onSubmit={handleAddMember} className="space-y-4">
+          <div>
+            <label
+              className="block text-sm font-medium mb-1.5"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Email address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="axion-input"
+              placeholder="teammate@company.com"
+              required
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddMember(false);
+                setEmail("");
+              }}
+              className="flex-1 py-2.5 rounded-xl text-sm transition-all hover:bg-[var(--bg-surface-hover)]"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all btn-glow"
+              style={{ background: "var(--accent)" }}
+            >
+              Add member
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Room Confirm */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => handelRoomDelete(selectedRoom?._id)}
+        title="Delete room"
+        description={`Are you sure you want to delete "${selectedRoom?.name}"? This action cannot be undone and all messages will be lost.`}
+        confirmLabel="Delete room"
+        danger
+      />
+
+      {/* Leave Room Confirm */}
+      <ConfirmModal
+        open={showLeaveConfirm}
+        onClose={() => setShowLeaveConfirm(false)}
+        onConfirm={() => handleLeaveRoom(selectedRoom?._id)}
+        title="Leave room"
+        description={`Are you sure you want to leave "${selectedRoom?.name}"?`}
+        confirmLabel="Leave room"
+        danger
+      />
+
+      {/* Clear Chat Confirm */}
+      <ConfirmModal
+        open={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => handleClearChat(selectedRoom?._id)}
+        title="Clear chat history"
+        description="This will delete all messages in this room. This cannot be undone."
+        confirmLabel="Clear chat"
+        danger
+      />
+    </main>
+  );
+}
+
+/* ── Helper sub-components ───────────────────────────────────────────────── */
+
+function DropdownItem({
+  icon,
+  label,
+  onClick,
+  danger = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left px-3.5 py-2 text-sm flex items-center gap-2.5 transition-all"
+      style={{
+        color: danger ? "var(--error)" : "var(--text-secondary)",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.background = danger
+          ? "var(--error-bg)"
+          : "var(--bg-surface-hover)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "transparent";
+      }}
+    >
+      <span style={{ color: danger ? "var(--error)" : "var(--text-muted)" }}>
+        {icon}
+      </span>
+      {label}
+    </button>
+  );
+}
+
+function ContextItem({
+  icon,
+  label,
+  onClick,
+  danger = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left px-3.5 py-2 text-sm flex items-center gap-2.5 transition-all"
+      style={{
+        color: danger ? "var(--error)" : "var(--text-primary)",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.background = danger
+          ? "var(--error-bg)"
+          : "var(--bg-surface-hover)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "transparent";
+      }}
+    >
+      <span style={{ color: danger ? "var(--error)" : "var(--text-muted)" }}>
+        {icon}
+      </span>
+      {label}
+    </button>
+  );
+}
+
+function MessageIconPlaceholder() {
+  return (
+    <div
+      className="w-14 h-14 rounded-2xl flex items-center justify-center opacity-20"
+      style={{ background: "var(--bg-surface)" }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="28"
+        height="28"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    </div>
   );
 }
