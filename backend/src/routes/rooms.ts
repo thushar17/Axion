@@ -643,4 +643,15 @@ return res.status(200).json({
    }
  });
 
+ //  message reaction toggle 
+
+
+RoomRouter.post("/messages/toggle-reaction",authMiddleware,async (req: Request, res: Response)=>{
+    try {
+      
+    } catch (error) {
+      
+    }
+})
+
 export default RoomRouter;

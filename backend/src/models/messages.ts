@@ -1,4 +1,5 @@
 import mongoose, { Schema, model, mongo } from 'mongoose'
+import { required } from 'zod/mini'
 
 const MessageSchema = new Schema({
     roomId: {
@@ -40,7 +41,27 @@ const MessageSchema = new Schema({
     isPinned:{
       type: Boolean,
       default: false
+    },
+    reactions:{
+        type:[
+            {
+                user:{
+                    type: Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true
+                },
+
+                emoji:{
+                    type: String,
+                    required: true
+                }
+            }
+
+
+        ],
+        default: []
     }
+        
 })
 
 export const MessageModel = model("Message", MessageSchema)
