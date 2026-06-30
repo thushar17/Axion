@@ -4,6 +4,7 @@ import { X, Pin } from "lucide-react";
 interface PinnedMessagesSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pinnedMessages: any[];
   isAdmin: boolean;
   onJump: (messageId: string) => void;

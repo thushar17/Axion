@@ -12,6 +12,7 @@ import {
 import { socket } from "@/src/lib/socket";
 import { toast } from "sonner";
 import { Avatar } from "@/src/components/Avatar";
+import { PinnedMessagesSheet } from "@/src/components/PinnedMessagesSheet";
 import { StatusDot } from "@/src/components/StatusDot";
 import { Modal, ConfirmModal } from "@/src/components/Modal";
 import {
@@ -148,6 +149,7 @@ export default function ChatPage() {
     message: any;
   } | null>(null);
   const [showRoomSettings, setShowRoomSettings] = useState(false);
+  const [isPinnedSheetOpen, setIsPinnedSheetOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameInput, setRenameInput] = useState("");
   const [showArchivedSection, setShowArchivedSection] = useState(false);
@@ -1479,97 +1481,36 @@ const pinnedMessages = messages.filter((message)=> message.pinned?.isPinned )
         </header>
 
         {/* Pinned message banner */}
-       {selectedRoom && pinnedMessages.length > 0 && (
-  <div
-    className="border-b shrink-0"
-    style={{
-      background: "rgba(99,102,241,0.06)",
-      borderColor: "rgba(99,102,241,0.18)",
-    }}
-  >
-    <div className="flex items-center gap-2 px-4 py-3 border-b"
-      style={{
-        borderColor: "rgba(99,102,241,0.12)",
-      }}
-    >
-      <Pin
-        size={14}
-        style={{ color: "var(--accent)" }}
-      />
-
-      <span
-        className="font-semibold"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Pinned Messages ({pinnedMessages.length})
-      </span>
-    </div>
-
-    <div className="max-h-44 overflow-y-auto">
-      {pinnedMessages.map((message) => (
-        <div
-          key={message._id}
-          className="flex items-center justify-between px-4 py-2 border-b"
-          style={{
-            borderColor: "rgba(99,102,241,0.08)",
-          }}
-        >
-          <div className="min-w-0 flex-1">
-            <p
-              className="truncate text-sm font-medium"
-              style={{
-                color: "var(--text-primary)",
-              }}
-            >
-              {message.content}
-            </p>
-
-            <p
-              className="text-xs mt-1"
-              style={{
-                color: "var(--text-muted)",
-              }}
-            >
-              {message.pinned?.pinnedAt
-                ? `Pinned ${new Date(
-                    message.pinned.pinnedAt
-                  ).toLocaleString()}`
-                : ""}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 ml-4">
-            <button
-              onClick={() =>
-                scrollToMessage(message._id)
-              }
-              className="text-xs font-semibold hover:underline"
-              style={{
-                color: "var(--accent-hover)",
-              }}
-            >
-              Jump
-            </button>
-
-            {isAdmin && (
-              <button
-                onClick={() =>
-                  handlePinMessage(message._id)
-                }
-                className="text-xs hover:underline"
-                style={{
-                  color: "var(--text-muted)",
-                }}
+        {selectedRoom && pinnedMessages.length > 0 && (
+          <div
+            className="flex items-center justify-between px-4 py-3 border-b shrink-0 cursor-pointer hover:bg-[rgba(99,102,241,0.03)] transition-colors"
+            style={{
+              background: "rgba(99,102,241,0.06)",
+              borderColor: "rgba(99,102,241,0.18)",
+            }}
+            onClick={() => setIsPinnedSheetOpen(true)}
+          >
+            <div className="flex items-center gap-2">
+              <Pin size={14} style={{ color: "var(--accent)" }} />
+              <span
+                className="font-semibold text-sm"
+                style={{ color: "var(--text-primary)" }}
               >
-                Unpin
-              </button>
-            )}
+                Pinned Messages ({pinnedMessages.length})
+              </span>
+            </div>
+            
+            <button 
+              className="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
+              style={{
+                color: "var(--accent)",
+                backgroundColor: "rgba(99,102,241,0.1)",
+              }}
+            >
+              View All
+            </button>
           </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+        )}
 
         {/* Messages area */}
         <div
@@ -2550,6 +2491,16 @@ const pinnedMessages = messages.filter((message)=> message.pinned?.isPinned )
         description="This will delete all messages in this room. This cannot be undone."
         confirmLabel="Clear chat"
         danger
+      />
+
+      {/* Pinned Messages Sheet */}
+      <PinnedMessagesSheet
+        open={isPinnedSheetOpen}
+        onOpenChange={setIsPinnedSheetOpen}
+        pinnedMessages={pinnedMessages}
+        isAdmin={isAdmin}
+        onJump={scrollToMessage}
+        onUnpin={handlePinMessage}
       />
     </main>
   );
