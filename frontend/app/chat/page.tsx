@@ -17,6 +17,7 @@ import { Modal, ConfirmModal } from "@/src/components/Modal";
 import {
   Hash,
   Lock,
+  Smile,
   Plus,
   Crown,
   X,
@@ -43,6 +44,8 @@ import {
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+
 
 // Helper to safely extract sender ID whether it's populated (object) or unpopulated (string)
 export const getSenderId = (s: any): string => {
@@ -157,9 +160,18 @@ export default function ChatPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showMembersPanel, setShowMembersPanel] = useState(true);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
-
+ const [showReactionPicker , setShowReactionPicker] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const emojis = [
+  "👍",
+  "❤️",
+  "😂",
+  "😮",
+  "😢",
+  "🎉",
+];
+
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -369,6 +381,33 @@ export default function ChatPage() {
         return current;
       });
     });
+    socket.on(
+"user-reacted",
+
+(data)=>{
+
+setMessages(prev=>
+
+prev.map(message=>
+
+message._id===data.messageId
+
+?{
+
+...message,
+
+reactions:data.messageReaction
+
+}
+
+:message
+
+)
+
+)
+
+}
+)
 
     return () => {
       socket.off("connect");
@@ -385,6 +424,7 @@ export default function ChatPage() {
       socket.off("message-pinned");
       socket.off("message-edit");
       socket.off("room-renamed");
+      socket.off("user-reacted")
       socket.disconnect();
     };
   }, [user, router, scrollToBottom]);
@@ -825,6 +865,20 @@ export default function ChatPage() {
       );
     }
   };
+// handel readtion 
+
+ const handleReaction=async (messageId:string, emoji : string)=>{
+    try {
+      const response = await axios.post("/room/messages/toggle-reaction",{
+        messageId,
+        emoji
+      },{
+        withCredentials: true
+      })
+    } catch (error) {
+      console.error(error)
+    }
+ }
 
   // ── Timestamp format ──────────────────────────────────────────────────────
   const formatMessageTimestamp = (dateString: string) => {
@@ -2123,7 +2177,7 @@ export default function ChatPage() {
                 label="Reply"
                 onClick={() => {
                   setReplyingTo(contextMenu.message);
-                  setContextMenu(null);
+                  (null);
                 }}
               />
               <ContextItem
@@ -2137,6 +2191,30 @@ export default function ChatPage() {
                   setContextMenu(null);
                 }}
               />
+              <ContextItem
+                icon={<Smile size={13} />}
+                label="React"
+                onClick={() => {
+                   setShowReactionPicker(contextMenu.message._id)
+                  
+                  setContextMenu(null);
+                }}
+              />
+              (showReactionPicker === contextMenu.message._id&&{
+                <div>
+                  {emojis.map((emoji)=>(
+                    <button
+                     key={emoji}
+                     onClick={()=> handleReaction(
+                       contextMenu.message._id,
+                       emoji
+                     )}>
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              })
+              
               <ContextItem
                 icon={
                   <Star

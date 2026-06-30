@@ -8,8 +8,8 @@ import { Types } from 'mongoose';
 import { getIO } from '../socket/index.js';
 const RoomRouter = Router()
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
-import { success } from 'zod';
 import { MessageModel } from '../models/messages.js';
+import { success } from 'zod';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
@@ -26,6 +26,7 @@ RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) =
         message: "data missing"
       })
     }
+
 
     const room = await RoomModel.create({
       name,
@@ -648,7 +649,99 @@ return res.status(200).json({
 
 RoomRouter.post("/messages/toggle-reaction",authMiddleware,async (req: Request, res: Response)=>{
     try {
+      if(!req.user){
+        return res.status(401).json({
+          success: false,
+          message: 'User not authorized'
+        })
+      }
+      const userId = req.user.id 
+      const {emoji, messageId}= req.body;
+      if(!emoji || !messageId){
+        return res.status(400).json({
+          success: false,
+          message: "Emoji or messageId not avlaibale"
+        })
+      }
+      const message = await MessageModel.findById(messageId);
+      if(!message){
+        return res.status(400).json({
+          success: false,
+          message: "Message not found"
+        })
+      }
+
+
+    const room = await RoomModel.findById(message.roomId);
+
+if (!room) {
+  return res.status(404).json({
+    success: false,
+    message: "Room not found",
+  });
+}
+
+  
+const isMember = room.members.some(
+  member => member.user.toString() === userId
+)
+
+if(!isMember) {
+  return res.status(403).json({
+    success: false,
+    message: "You are no longer a member of this room",
+  });
+}
+
+      const allowedEmojis = [
+    "👍",
+    "❤️",
+    "😂",
+    "😮",
+    "😢",
+    "🎉"
+];
+
+if (!allowedEmojis.includes(emoji)) {
+    return res.status(400).json({
+        success: false,
+        message: "Invalid emoji"
+    });
+}
+      const existingReaction = message.reactions.find(
+        reaction=> reaction.user.toString() === userId 
+      )
+  
+
+      if(!existingReaction){
+          message.reactions.push({user: userId, emoji: emoji})
       
+      }
+      else{
+        if(existingReaction?.emoji === emoji){
+         await existingReaction.deleteOne()
+      }
+
+         else{
+           existingReaction.emoji = emoji
+         }
+      }
+      
+       await message.save()
+
+       const io = getIO()
+
+       io.to(message.roomId.toString()).emit("user-reacted",{
+        messageId: message._id,
+        messageReaction: message.reactions
+
+       })
+      
+      res.status(200).json({
+        success: true,
+        message
+      })
+
     } catch (error) {
       
     }
