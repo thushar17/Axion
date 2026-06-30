@@ -160,7 +160,6 @@ export default function ChatPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showMembersPanel, setShowMembersPanel] = useState(true);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
- const [showReactionPicker , setShowReactionPicker] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const emojis = [
@@ -869,12 +868,15 @@ reactions:data.messageReaction
 
  const handleReaction=async (messageId:string, emoji : string)=>{
     try {
-      const response = await axios.post("/room/messages/toggle-reaction",{
+      const response = await axios.post(`${API_URL}/room/messages/toggle-reaction`,{
         messageId,
         emoji
       },{
         withCredentials: true
       })
+      if (response.data.success) {
+      setContextMenu(null);
+    }
     } catch (error) {
       console.error(error)
     }
@@ -906,6 +908,20 @@ reactions:data.messageReaction
       timeStr
     );
   };
+ // grouping reactions
+
+const groupedReaction = (
+  reactions: { emoji: string }[]
+) => {
+  const grouped: Record<string, number> = {};
+
+  reactions.forEach((reaction) => {
+    grouped[reaction.emoji] =
+      (grouped[reaction.emoji] || 0) + 1;
+  });
+
+  return grouped;
+};
 
   useEffect(() => {
     if (showStarredPanel) fetchStarredMessages();
@@ -1547,6 +1563,7 @@ reactions:data.messageReaction
                 5 * 60 * 1000;
 
             const isHovered = hoveredMsgId === message._id;
+            const groupedReactions = groupedReaction(message.reactions || [])
 
             return (
               <div
@@ -1700,6 +1717,21 @@ reactions:data.messageReaction
                       ) : (
                         <p style={{ margin: 0 }}>{message.content}</p>
                       )}
+                      {Object.entries(groupedReactions).length > 0 && (
+  <div className="flex gap-2 mt-2 flex-wrap">
+    {Object.entries(groupedReactions).map(
+      ([emoji, count]) => (
+        <div
+          key={emoji}
+          className="px-2 py-1 rounded-full text-sm border cursor-pointer"
+          onClick={() => handleReaction(message._id, emoji)}
+        >
+          {emoji} {count}
+        </div>
+      )
+    )}
+  </div>
+)}
 
                       {/* Timestamp + status */}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, marginTop: 4 }}>
@@ -2191,29 +2223,34 @@ reactions:data.messageReaction
                   setContextMenu(null);
                 }}
               />
-              <ContextItem
-                icon={<Smile size={13} />}
-                label="React"
-                onClick={() => {
-                   setShowReactionPicker(contextMenu.message._id)
-                  
-                  setContextMenu(null);
-                }}
-              />
-              (showReactionPicker === contextMenu.message._id&&{
-                <div>
-                  {emojis.map((emoji)=>(
-                    <button
-                     key={emoji}
-                     onClick={()=> handleReaction(
-                       contextMenu.message._id,
-                       emoji
-                     )}>
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              })
+
+
+
+        <div
+  className="px-3 py-2 border-b"
+  style={{ borderColor: "var(--border-subtle)" }}
+>
+  <p
+    className="text-xs mb-2"
+    style={{ color: "var(--text-muted)" }}
+  >
+    React
+  </p>
+
+  <div className="flex gap-2 flex-wrap">
+    {emojis.map((emoji) => (
+      <button
+        key={emoji}
+        onClick={() =>
+          handleReaction(contextMenu.message._id, emoji)
+        }
+        className="w-8 h-8 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
+      >
+        {emoji}
+      </button>
+    ))}
+  </div>
+</div>
               
               <ContextItem
                 icon={
