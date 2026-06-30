@@ -467,6 +467,55 @@ return res.status(200).json({
  });
 
  // pin message route
+//  RoomRouter.post("/pin-message", authMiddleware, async (req: Request, res: Response) => {
+//    try {
+//      if (!req.user) {
+//        return res.status(401).json({
+//          success: false,
+//          message: "User not authorized"
+//        });
+//      }
+//      const userId = req.user.id;
+//      const { messageId, isPinned } = req.body;
+
+//      const message = await MessageModel.findById(messageId);
+//      if (!message) {
+//        return res.status(400).json({
+//          success: false,
+//          message: "Message not found"
+//        });
+//      }
+
+//      const role = await checkForUserRole(message.roomId, userId);
+//      if (role !== "admin") {
+//        return res.status(403).json({
+//          success: false,
+//          message: "Only admins can pin or unpin messages"
+//        });
+//      }
+
+//      message.isPinned = isPinned;
+//      await message.save();
+
+//      const io = getIO();
+//      io.to(message.roomId.toString()).emit("message-pinned", {
+//        messageId: message._id,
+//        isPinned: message.isPinned
+//      });
+
+//      res.status(200).json({
+//        success: true,
+//        message
+//      });
+//    } catch (error) {
+//      console.error(error);
+//      res.status(500).json({
+//        success: false,
+//        message: "Internal server error"
+//      });
+//    }
+//  });
+
  RoomRouter.post("/pin-message", authMiddleware, async (req: Request, res: Response) => {
    try {
      if (!req.user) {
@@ -476,7 +525,7 @@ return res.status(200).json({
        });
      }
      const userId = req.user.id;
-     const { messageId, isPinned } = req.body;
+     const { messageId } = req.body;
 
      const message = await MessageModel.findById(messageId);
      if (!message) {
@@ -493,19 +542,30 @@ return res.status(200).json({
          message: "Only admins can pin or unpin messages"
        });
      }
+    if(message.pinned?.isPinned){
+      message.pinned.isPinned= false
+      message.pinned.pinnedBy = null;
+     message.pinned.pinnedAt= null
 
-     message.isPinned = isPinned;
+    }
+    else{
+      message.pinned!.isPinned = true;
+     message.pinned!.pinnedBy = new Types.ObjectId(userId);
+     message.pinned!.pinnedAt= new Date()
+    }
+     
+
      await message.save();
 
      const io = getIO();
      io.to(message.roomId.toString()).emit("message-pinned", {
        messageId: message._id,
-       isPinned: message.isPinned
+    pinned: message.pinned
      });
 
      res.status(200).json({
        success: true,
-       message
+       pinned: message.pinned
      });
    } catch (error) {
      console.error(error);

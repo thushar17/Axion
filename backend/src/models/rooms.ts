@@ -40,6 +40,7 @@ const RoomSchema = new Schema({
         type: Date
     }
 },
+
 {
     timestamps: true
 }

@@ -38,10 +38,22 @@ const MessageSchema = new Schema({
       type: Boolean,
       default: false
     },
-    isPinned:{
-      type: Boolean,
-      default: false
+    pinned:{
+        isPinned:{
+            type: Boolean,
+            default: false
+        },
+        pinnedBy:{
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            default: null
+        },
+        pinnedAt:{
+            type: Date,
+            default: null
+        }
     },
+   
     reactions:{
         type:[
             {

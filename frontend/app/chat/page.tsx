@@ -336,7 +336,9 @@ export default function ChatPage() {
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === data.messageId
-            ? { ...msg, isPinned: data.isPinned }
+            ? { ...msg, 
+              pinned: data.pinned 
+             }
             : msg
         )
       );
@@ -678,15 +680,18 @@ reactions:data.messageReaction
   };
 
   // ── Pin message ───────────────────────────────────────────────────────────
-  const handlePinMessage = async (messageId: string, isPinned: boolean) => {
+  const handlePinMessage = async (messageId: string) => {
     try {
       const response = await axios.post(
         `${API_URL}/room/pin-message`,
-        { messageId, isPinned },
+        { messageId},
         { withCredentials: true }
       );
       if (!response.data.success) {
         toast.error(response.data.message || "Failed to pin message");
+      }
+      else{
+        setContextMenu(null)
       }
     } catch (error) {
       console.error(error);
@@ -923,9 +928,22 @@ const groupedReaction = (
   return grouped;
 };
 
+
+// storing pinned messages
+
+const pinnedMessages = messages.filter((message)=> message.pinned?.isPinned )
+.sort(
+  (a,b)=> 
+    new Date(b.pinned?.pinnedAt || 0).getTime()-
+  new Date(a.pinned?.pinnedAt || 0).getTime()
+)
+
   useEffect(() => {
     if (showStarredPanel) fetchStarredMessages();
   }, [showStarredPanel]);
+
+
+
 
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
@@ -1461,62 +1479,97 @@ const groupedReaction = (
         </header>
 
         {/* Pinned message banner */}
-        {selectedRoom &&
-          messages.filter((m) => m.isPinned).length > 0 && (
-            <div
-              className="flex items-center justify-between px-4 py-2 text-xs border-b shrink-0"
+       {selectedRoom && pinnedMessages.length > 0 && (
+  <div
+    className="border-b shrink-0"
+    style={{
+      background: "rgba(99,102,241,0.06)",
+      borderColor: "rgba(99,102,241,0.18)",
+    }}
+  >
+    <div className="flex items-center gap-2 px-4 py-3 border-b"
+      style={{
+        borderColor: "rgba(99,102,241,0.12)",
+      }}
+    >
+      <Pin
+        size={14}
+        style={{ color: "var(--accent)" }}
+      />
+
+      <span
+        className="font-semibold"
+        style={{ color: "var(--text-primary)" }}
+      >
+        Pinned Messages ({pinnedMessages.length})
+      </span>
+    </div>
+
+    <div className="max-h-44 overflow-y-auto">
+      {pinnedMessages.map((message) => (
+        <div
+          key={message._id}
+          className="flex items-center justify-between px-4 py-2 border-b"
+          style={{
+            borderColor: "rgba(99,102,241,0.08)",
+          }}
+        >
+          <div className="min-w-0 flex-1">
+            <p
+              className="truncate text-sm font-medium"
               style={{
-                background: "rgba(99,102,241,0.06)",
-                borderColor: "rgba(99,102,241,0.18)",
+                color: "var(--text-primary)",
               }}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <Pin
-                  size={12}
-                  style={{ color: "var(--accent)", flexShrink: 0 }}
-                />
-                <span
-                  className="truncate"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  <span style={{ color: "var(--text-muted)" }}>Pinned: </span>
-                  <span className="font-semibold">
-                    {
-                      messages
-                        .filter((m) => m.isPinned)
-                        .at(-1)?.content
-                    }
-                  </span>
-                </span>
-              </div>
-              <div className="flex items-center gap-3 shrink-0 ml-3">
-                <button
-                  onClick={() => {
-                    const pinnedList = messages.filter((m) => m.isPinned);
-                    if (pinnedList.length > 0)
-                      scrollToMessage(pinnedList.at(-1)!._id);
-                  }}
-                  className="font-semibold hover:underline transition"
-                  style={{ color: "var(--accent-hover)" }}
-                >
-                  Jump
-                </button>
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      const pinnedList = messages.filter((m) => m.isPinned);
-                      if (pinnedList.length > 0)
-                        handlePinMessage(pinnedList.at(-1)!._id, false);
-                    }}
-                    className="hover:underline transition"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Unpin
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+              {message.content}
+            </p>
+
+            <p
+              className="text-xs mt-1"
+              style={{
+                color: "var(--text-muted)",
+              }}
+            >
+              {message.pinned?.pinnedAt
+                ? `Pinned ${new Date(
+                    message.pinned.pinnedAt
+                  ).toLocaleString()}`
+                : ""}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 ml-4">
+            <button
+              onClick={() =>
+                scrollToMessage(message._id)
+              }
+              className="text-xs font-semibold hover:underline"
+              style={{
+                color: "var(--accent-hover)",
+              }}
+            >
+              Jump
+            </button>
+
+            {isAdmin && (
+              <button
+                onClick={() =>
+                  handlePinMessage(message._id)
+                }
+                className="text-xs hover:underline"
+                style={{
+                  color: "var(--text-muted)",
+                }}
+              >
+                Unpin
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
         {/* Messages area */}
         <div
@@ -1564,7 +1617,7 @@ const groupedReaction = (
 
             const isHovered = hoveredMsgId === message._id;
             const groupedReactions = groupedReaction(message.reactions || [])
-
+  
             return (
               <div
                 key={message._id}
@@ -1586,7 +1639,7 @@ const groupedReaction = (
                   borderRadius: "12px",
                   background: isHovered ? "var(--bg-surface-hover)" : "transparent",
                   transition: "background 0.1s ease",
-                  outline: message.isPinned ? "1px solid var(--accent-muted)" : "none",
+                  outline: message.pinned?.isPinned? "1px solid var(--accent-muted)" : "none",
                 }}
               >
                 {/* Avatar — received messages only, first in group */}
@@ -1627,7 +1680,7 @@ const groupedReaction = (
                   )}
 
                   {/* Pin badge */}
-                  {message.isPinned && (
+                  {message.pinned?.isPinned && (
                     <div
                       style={{
                         display: "flex",
@@ -2282,14 +2335,13 @@ const groupedReaction = (
                 <ContextItem
                   icon={<Pin size={13} />}
                   label={
-                    contextMenu.message.isPinned
-                      ? "Unpin Message"
-                      : "Pin Message"
+                    contextMenu.message.pinned?.isPinned 
+                      ? "Unpin"
+                      : "Pin"
                   }
                   onClick={() => {
                     handlePinMessage(
-                      contextMenu.message._id,
-                      !contextMenu.message.isPinned
+                      contextMenu.message._id
                     );
                     setContextMenu(null);
                   }}
