@@ -1,6 +1,9 @@
 "use client";
 
-import axios from "axios";
+import { checkAuth, starMessage, getStarredMessages, muteRoom, archiveRoom, clearChat } from "./services/auth.service";
+import { getRooms, createRoom, deleteRoom, renameRoom, leaveRoom, getMembers, addMember, removeMember, generateInvite } from "./services/room.service";
+import { editMessage, deleteMessage, pinMessage, toggleReaction, searchMessages, getPaginatedMessages } from "./services/message.service";
+import { getSenderId } from "./utils/getSenderId";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -52,14 +55,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 
 
-// Helper to safely extract sender ID whether it's populated (object) or unpopulated (string)
-export const getSenderId = (s: any): string => {
-  if (!s) return "";
-  if (typeof s === "string") return s;
-  if (typeof s === "object" && s._id) return String(s._id);
-  if (typeof s === "object" && s.id) return String(s.id);
-  return "";
-};
+
 
 /* ─── Small sub-components ──────────────────────────────────────────────── */
 
@@ -181,7 +177,7 @@ const [loadingMore, setLoadingMore] = useState(false);
   "🎉",
 ];
 const [searchQuery, setSearchQuery] = useState("");
-const [searchResults, setSearchResults] = useState<Message[]>([]);
+const [searchResults, setSearchResults] = useState<any[]>([]);
 const [isSeraching, setIsSearching] = useState(false)
 
   const scrollToBottom = useCallback(() => {
@@ -207,11 +203,9 @@ const [isSeraching, setIsSearching] = useState(false)
 
   // ── Auth check ────────────────────────────────────────────────────────────
   useEffect(() => {
-    const checkAuth = async () => {
+    const verifyAuth = async () => {
       try {
-        const response = await axios.get(`${API_URL}/auth/me`, {
-          withCredentials: true,
-        });
+        const response = await checkAuth();
         setUser(response.data.user);
         socket.connect();
         setLoading(false);
@@ -220,7 +214,7 @@ const [isSeraching, setIsSearching] = useState(false)
         router.push("/auth/login");
       }
     };
-    checkAuth();
+    verifyAuth();
   }, [router]);
 
   // ── Socket events ─────────────────────────────────────────────────────────
@@ -470,9 +464,7 @@ reactions:data.messageReaction
   // ── Fetch rooms ───────────────────────────────────────────────────────────
   const fetchRooms = async () => {
     try {
-      const response = await axios.get(`${API_URL}/room/getRooms`, {
-        withCredentials: true,
-      });
+      const response = await getRooms();
       if (response.status !== 200) {
         toast.error("Failed to fetch rooms");
         return;
@@ -492,11 +484,7 @@ reactions:data.messageReaction
   const handleRoomCreation = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.post(
-        `${API_URL}/room/create`,
-        { name: roomName, type: roomType },
-        { withCredentials: true }
-      );
+      const response = await createRoom(roomName, roomType);
       if (response.status === 400) {
         toast.error("Error while creating room");
         return;
@@ -519,10 +507,7 @@ reactions:data.messageReaction
   // ── Fetch members ─────────────────────────────────────────────────────────
   const fetchMembers = async () => {
     try {
-      const response = await axios.get(
-        `${API_URL}/room/${selectedRoom._id}/members`,
-        { withCredentials: true }
-      );
+      const response = await getMembers(selectedRoom._id);
       setMembers(response.data.members);
     } catch (error) {
       console.error(error);
@@ -547,11 +532,7 @@ reactions:data.messageReaction
     e?.preventDefault();
     if (!selectedRoom) return;
     try {
-      const response = await axios.post(
-        `${API_URL}/room/add-member`,
-        { email, roomId: selectedRoom._id },
-        { withCredentials: true }
-      );
+      const response = await addMember(email, selectedRoom._id);
       if (response.data.success) {
         toast.success(response.data.message);
         setEmail("");
@@ -583,10 +564,7 @@ reactions:data.messageReaction
   // ── Remove member ─────────────────────────────────────────────────────────
   const handelRemoveMember = async (memberId: string) => {
     try {
-      const response = await axios.delete(`${API_URL}/room/remove-member`, {
-        data: { memberId, roomId: selectedRoom._id },
-        withCredentials: true,
-      });
+      const response = await removeMember(memberId, selectedRoom._id);
       if (response.data.success) {
         toast.success("Member removed");
       }
@@ -605,11 +583,7 @@ reactions:data.messageReaction
   // ── Generate invite link ──────────────────────────────────────────────────
   const handelLinkGeneration = async () => {
     try {
-      const response = await axios.post(
-        `${API_URL}/room/generate-invite`,
-        { roomId: selectedRoom._id },
-        { withCredentials: true }
-      );
+      const response = await generateInvite(selectedRoom._id);
       if (!response.data.success) {
         toast.error(response.data.message);
         return;
@@ -625,10 +599,7 @@ reactions:data.messageReaction
   // ── Delete room ───────────────────────────────────────────────────────────
   const handelRoomDelete = async (roomId: string) => {
     try {
-      const response = await axios.delete(`${API_URL}/room/delete`, {
-        data: { roomId },
-        withCredentials: true,
-      });
+      const response = await deleteRoom(roomId);
       if (!response.data.success) {
         toast.error(response.data.message);
         return;
@@ -645,11 +616,7 @@ reactions:data.messageReaction
   const handelEditMessage = async () => {
     if (!input.trim()) return;
     try {
-      const response = await axios.post(
-        `${API_URL}/room/edit-message`,
-        { messageId: editingMessageId, messageContent: input },
-        { withCredentials: true }
-      );
+      const response = await editMessage(editingMessageId as string, input);
       if (response.data.success) {
         setMessages(
           messages.map((msg) =>
@@ -672,11 +639,7 @@ reactions:data.messageReaction
   // ── Delete message ────────────────────────────────────────────────────────
   const handleDeleteMessage = async (messageId: string) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/room/delete-message`,
-        { messageId },
-        { withCredentials: true }
-      );
+      const response = await deleteMessage(messageId);
       if (!response.data.success) {
         toast.error(response.data.message || "Failed to delete message");
       }
@@ -689,11 +652,7 @@ reactions:data.messageReaction
   // ── Pin message ───────────────────────────────────────────────────────────
   const handlePinMessage = async (messageId: string) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/room/pin-message`,
-        { messageId},
-        { withCredentials: true }
-      );
+      const response = await pinMessage(messageId);
       if (!response.data.success) {
         toast.error(response.data.message || "Failed to pin message");
       }
@@ -709,11 +668,7 @@ reactions:data.messageReaction
   // ── Star message ──────────────────────────────────────────────────────────
   const handleStarMessage = async (messageId: string) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/auth/star-message`,
-        { messageId },
-        { withCredentials: true }
-      );
+      const response = await starMessage(messageId);
       if (response.data.success) {
         const starred = response.data.starredMessages;
         setStarredMessageIds(starred);
@@ -728,9 +683,7 @@ reactions:data.messageReaction
   // ── Fetch starred ─────────────────────────────────────────────────────────
   const fetchStarredMessages = async () => {
     try {
-      const response = await axios.get(`${API_URL}/auth/starred-messages`, {
-        withCredentials: true,
-      });
+      const response = await getStarredMessages();
       if (response.data.success) {
         setStarredMessages(response.data.messages);
       }
@@ -742,11 +695,7 @@ reactions:data.messageReaction
   // ── Mute room ─────────────────────────────────────────────────────────────
   const handleMuteRoom = async (roomId: string) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/auth/mute-room`,
-        { roomId },
-        { withCredentials: true }
-      );
+      const response = await muteRoom(roomId);
       if (response.data.success) {
         setMutedRoomIds(response.data.mutedRooms);
         toast.success(
@@ -761,11 +710,7 @@ reactions:data.messageReaction
   // ── Archive room ──────────────────────────────────────────────────────────
   const handleArchiveRoom = async (roomId: string) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/auth/archive-room`,
-        { roomId },
-        { withCredentials: true }
-      );
+      const response = await archiveRoom(roomId);
       if (response.data.success) {
         setArchivedRoomIds(response.data.archivedRooms);
         toast.success(
@@ -781,11 +726,7 @@ reactions:data.messageReaction
   // ── Clear chat ────────────────────────────────────────────────────────────
   const handleClearChat = async (roomId: string) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/auth/clear-chat`,
-        { roomId },
-        { withCredentials: true }
-      );
+      const response = await clearChat(roomId);
       if (response.data.success) {
         setMessages([]);
         toast.success("Chat cleared");
@@ -801,11 +742,7 @@ reactions:data.messageReaction
   const handleRenameRoom = async () => {
     if (!renameInput.trim() || !selectedRoom) return;
     try {
-      const response = await axios.post(
-        `${API_URL}/room/rename`,
-        { roomId: selectedRoom._id, newName: renameInput },
-        { withCredentials: true }
-      );
+      const response = await renameRoom(selectedRoom._id, renameInput);
       if (response.data.success) {
         setIsRenaming(false);
         setRenameInput("");
@@ -822,11 +759,7 @@ reactions:data.messageReaction
   // ── Leave room ────────────────────────────────────────────────────────────
   const handleLeaveRoom = async (roomId: string) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/room/leave`,
-        { roomId },
-        { withCredentials: true }
-      );
+      const response = await leaveRoom(roomId);
       if (response.data.success) {
         setAllRooms((prev) => {
           const updatedRooms = prev.filter((r) => r._id !== roomId);
@@ -880,12 +813,7 @@ reactions:data.messageReaction
 
  const handleReaction=async (messageId:string, emoji : string)=>{
     try {
-      const response = await axios.post(`${API_URL}/room/messages/toggle-reaction`,{
-        messageId,
-        emoji
-      },{
-        withCredentials: true
-      })
+      const response = await toggleReaction(messageId, emoji);
       if (response.data.success) {
       setContextMenu(null);
     }
@@ -925,15 +853,7 @@ useEffect(()=>{
 const timer = setTimeout( async() => {
    try {
     setIsSearching(true)
-     const response =  await axios.get(`${API_URL}/room/messages/search`,
-      {
-        params:{
-          roomId: selectedRoom._id,
-          query: searchQuery
-        },
-        withCredentials: true
-      }
-     )
+     const response = await searchMessages(selectedRoom._id, searchQuery);
      setSearchResults(response.data.messages)
    } catch (error) {
     console.log(error)
@@ -950,15 +870,7 @@ return ()=> clearTimeout(timer)
 
 const loadMessages = async (roomId: string) => {
   try {
-    const response = await axios.get(
-      `${API_URL}/room/messages/paginated`,
-      {
-        params: {
-          roomId,
-        },
-        withCredentials: true,
-      }
-    );
+    const response = await getPaginatedMessages(roomId);
 
     setMessages(response.data.messages.reverse());
 
@@ -984,16 +896,7 @@ const loadOlderMessages = async () => {
   try {
     setLoadingMore(true);
 
-    const response = await axios.get(
-      `${API_URL}/room/messages/paginated`,
-      {
-        params: {
-          roomId: selectedRoom._id,
-          cursor,
-        },
-        withCredentials: true,
-      }
-    );
+    const response = await getPaginatedMessages(selectedRoom._id, cursor);
 
     setMessages((prev) => [
       ...response.data.messages.reverse(),
