@@ -42,6 +42,7 @@ import {
   Check,
   CheckCheck,
   Menu,
+  Search,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -172,7 +173,9 @@ export default function ChatPage() {
   "😢",
   "🎉",
 ];
-
+const [searchQuery, setSearchQuery] = useState("");
+const [searchResults, setSearchResults] = useState<Message[]>([]);
+const [isSeraching, setIsSearching] = useState(false)
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -946,6 +949,41 @@ const pinnedMessages = messages.filter((message)=> message.pinned?.isPinned )
 
 
 
+// messages search
+
+useEffect(()=>{
+  if(!selectedRoom) return;
+
+  if(!searchQuery.trim()){
+    setSearchResults([])
+    return;
+  }
+
+const timer = setTimeout( async() => {
+   try {
+    setIsSearching(true)
+     const response =  await axios.get(`${API_URL}/room/messages/search`,
+      {
+        params:{
+          roomId: selectedRoom._id,
+          query: searchQuery
+        },
+        withCredentials: true
+      }
+     )
+     setSearchResults(response.data.messages)
+   } catch (error) {
+    console.log(error)
+   }
+   finally{
+    setIsSearching(false)
+   }
+}, 300);
+
+return ()=> clearTimeout(timer)
+
+},[searchQuery, selectedRoom])
+
 
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
@@ -1337,6 +1375,52 @@ const pinnedMessages = messages.filter((message)=> message.pinned?.isPinned )
           {/* Right actions */}
           {selectedRoom && (
             <div className="flex items-center gap-1 shrink-0">
+              {/* Search Box */}
+              <div className="relative flex items-center mr-2 hidden sm:flex">
+                <Search size={14} className="absolute left-2.5" style={{ color: "var(--text-muted)" }} />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-sm rounded-lg border transition-all duration-300 w-32 focus:w-48 md:w-40 md:focus:w-64 outline-none"
+                  style={{
+                    background: "var(--bg-app)",
+                    borderColor: "var(--border-subtle)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+                {searchResults.length > 0 && (
+                  <div
+                    className="absolute top-full right-0 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border shadow-2xl z-50"
+                    style={{
+                      background: "var(--bg-surface)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    <div className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider" style={{ borderColor: "var(--border-subtle)", color: "var(--text-muted)" }}>
+                      Search Results
+                    </div>
+                    {searchResults.map((message) => (
+                      <button
+                        key={message._id}
+                        onClick={() => {
+                          scrollToMessage(message._id);
+                          setSearchResults([]);
+                          setSearchQuery("");
+                        }}
+                        className="w-full text-left px-3 py-2.5 transition-colors border-b last:border-0 hover:bg-[var(--bg-surface-hover)]"
+                        style={{ borderColor: "var(--border-subtle)" }}
+                      >
+                        <div className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
+                          {message.content}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Starred toggle */}
               <button
                 onClick={() => setShowStarredPanel((v) => !v)}

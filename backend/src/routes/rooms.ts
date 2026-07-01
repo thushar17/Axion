@@ -9,7 +9,7 @@ import { getIO } from '../socket/index.js';
 const RoomRouter = Router()
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
 import { MessageModel } from '../models/messages.js';
-import { success } from 'zod';
+import { check, success } from 'zod';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
@@ -806,5 +806,61 @@ if (!allowedEmojis.includes(emoji)) {
       
     }
 })
+// search in room chat 
 
+RoomRouter.get("/messages/search",authMiddleware, async (req: Request, res: Response)=>{
+  try {
+    if(!req.user){
+        return res.status(401).json({
+          success: false,
+          message: 'User not authorized'
+        })
+      }
+      const userId = req.user.id
+     const roomId = req.query.roomId as string;
+     const query = req.query.query as string;
+    if(!roomId || !query){
+      return res.status(400).json({
+        success: false,
+        message: "roomId or query is missing"
+      })
+    }
+    const UserExist = await checkForUserRole(roomId, userId)
+    if(!UserExist){
+      return res.status(403).json({
+         success: false,
+         message: 'User is not member of room anymore'
+      })
+    }
+    if (!query.trim()) {
+  return res.json({
+    success: true,
+    messages: [],
+  });
+}
+    const search = await MessageModel.find({
+      roomId,
+      content:{
+         $regex: query,
+         $options: 'i'
+      },
+      isDeleted: false,
+    })
+    .limit(20)
+    .sort({
+      createdAt: -1
+    })
+    res.status(200).json({
+      success: true,
+      messages: search
+    })
+  } catch (error) {
+    console.error(error);
+
+  res.status(500).json({
+    success: false,
+    message: "Internal server error",
+  });
+  }
+})
 export default RoomRouter;
