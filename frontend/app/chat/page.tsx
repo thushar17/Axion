@@ -44,8 +44,11 @@ import {
   Menu,
   Search,
 } from "lucide-react";
+import { formatMessageTimestamp } from "./utils/formatTimestamp";
+import { groupedReaction } from "./utils/groupedReaction";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 
 
 
@@ -891,46 +894,7 @@ reactions:data.messageReaction
     }
  }
 
-  // ── Timestamp format ──────────────────────────────────────────────────────
-  const formatMessageTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const isToday =
-      date.getDate() === now.getDate() &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    const isYesterday =
-      date.getDate() === yesterday.getDate() &&
-      date.getMonth() === yesterday.getMonth() &&
-      date.getFullYear() === yesterday.getFullYear();
-    const timeStr = date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    if (isToday) return timeStr;
-    if (isYesterday) return `Yesterday, ${timeStr}`;
-    return (
-      date.toLocaleDateString([], { month: "short", day: "numeric" }) +
-      ", " +
-      timeStr
-    );
-  };
- // grouping reactions
 
-const groupedReaction = (
-  reactions: { emoji: string }[]
-) => {
-  const grouped: Record<string, number> = {};
-
-  reactions.forEach((reaction) => {
-    grouped[reaction.emoji] =
-      (grouped[reaction.emoji] || 0) + 1;
-  });
-
-  return grouped;
-};
 
 
 // storing pinned messages
@@ -1668,6 +1632,7 @@ const loadOlderMessages = async () => {
           }}
         >
           {loadingMore && <div className="text-center text-xs py-2" style={{ color: "var(--text-muted)" }}>Loading older messages...</div>}
+
           {!selectedRoom && (
             <div
               className="h-full flex flex-col items-center justify-center text-center gap-3"
