@@ -154,6 +154,9 @@ export default function ChatPage() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameInput, setRenameInput] = useState("");
   const [showArchivedSection, setShowArchivedSection] = useState(false);
+const [cursor, setCursor] = useState<string | null>(null);
+const [hasMore, setHasMore] = useState(true);
+const [loadingMore, setLoadingMore] = useState(false);
 
   // UI state
   const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -165,6 +168,7 @@ export default function ChatPage() {
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
   const emojis = [
   "👍",
   "❤️",
@@ -229,11 +233,6 @@ const [isSeraching, setIsSearching] = useState(false)
 
     socket.on("room-joined", (roomId) => {
       socket.emit("message-seen", roomId);
-    });
-
-    socket.on("message-history", (history) => {
-      setMessages(history.reverse());
-      setTimeout(scrollToBottom, 100);
     });
 
     socket.on("new-message", (message) => {
@@ -419,7 +418,6 @@ reactions:data.messageReaction
       socket.off("connect");
       socket.off("connect_error");
       socket.off("room-joined");
-      socket.off("message-history");
       socket.off("new-message");
       socket.off("message-status-updated");
       socket.off("typing-status");
@@ -538,6 +536,7 @@ reactions:data.messageReaction
     });
     fetchMembers();
     setMobileSidebarOpen(false);
+    loadMessages(selectedRoom._id);
   }, [selectedRoom]);
 
   // ── Add member ────────────────────────────────────────────────────────────
@@ -984,6 +983,68 @@ return ()=> clearTimeout(timer)
 
 },[searchQuery, selectedRoom])
 
+
+const loadMessages = async (roomId: string) => {
+  try {
+    const response = await axios.get(
+      `${API_URL}/room/messages/paginated`,
+      {
+        params: {
+          roomId,
+        },
+        withCredentials: true,
+      }
+    );
+
+    setMessages(response.data.messages.reverse());
+
+    setCursor(response.data.nextCursor);
+
+    setHasMore(response.data.hasMore);
+    setTimeout(scrollToBottom, 100);
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+
+const loadOlderMessages = async () => {
+  if (!selectedRoom) return;
+
+  if (!cursor) return;
+
+  if (!hasMore) return;
+
+  if (loadingMore) return;
+
+  try {
+    setLoadingMore(true);
+
+    const response = await axios.get(
+      `${API_URL}/room/messages/paginated`,
+      {
+        params: {
+          roomId: selectedRoom._id,
+          cursor,
+        },
+        withCredentials: true,
+      }
+    );
+
+    setMessages((prev) => [
+      ...response.data.messages.reverse(),
+      ...prev,
+    ]);
+
+    setCursor(response.data.nextCursor);
+
+    setHasMore(response.data.hasMore);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setLoadingMore(false);
+  }
+};
 
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
@@ -1600,7 +1661,13 @@ return ()=> clearTimeout(timer)
         <div
           className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
           style={{ background: "var(--bg-app)" }}
+          onScroll={(e) => {
+            if ((e.target as HTMLDivElement).scrollTop === 0) {
+              loadOlderMessages();
+            }
+          }}
         >
+          {loadingMore && <div className="text-center text-xs py-2" style={{ color: "var(--text-muted)" }}>Loading older messages...</div>}
           {!selectedRoom && (
             <div
               className="h-full flex flex-col items-center justify-center text-center gap-3"

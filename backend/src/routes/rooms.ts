@@ -467,54 +467,6 @@ return res.status(200).json({
  });
 
  // pin message route
-//  RoomRouter.post("/pin-message", authMiddleware, async (req: Request, res: Response) => {
-//    try {
-//      if (!req.user) {
-//        return res.status(401).json({
-//          success: false,
-//          message: "User not authorized"
-//        });
-//      }
-//      const userId = req.user.id;
-//      const { messageId, isPinned } = req.body;
-
-//      const message = await MessageModel.findById(messageId);
-//      if (!message) {
-//        return res.status(400).json({
-//          success: false,
-//          message: "Message not found"
-//        });
-//      }
-
-//      const role = await checkForUserRole(message.roomId, userId);
-//      if (role !== "admin") {
-//        return res.status(403).json({
-//          success: false,
-//          message: "Only admins can pin or unpin messages"
-//        });
-//      }
-
-//      message.isPinned = isPinned;
-//      await message.save();
-
-//      const io = getIO();
-//      io.to(message.roomId.toString()).emit("message-pinned", {
-//        messageId: message._id,
-//        isPinned: message.isPinned
-//      });
-
-//      res.status(200).json({
-//        success: true,
-//        message
-//      });
-//    } catch (error) {
-//      console.error(error);
-//      res.status(500).json({
-//        success: false,
-//        message: "Internal server error"
-//      });
-//    }
-//  });
 
  RoomRouter.post("/pin-message", authMiddleware, async (req: Request, res: Response) => {
    try {
@@ -863,4 +815,74 @@ RoomRouter.get("/messages/search",authMiddleware, async (req: Request, res: Resp
   });
   }
 })
+
+// find messages in room 
+
+RoomRouter.get("/messages/paginated",authMiddleware,async(req: Request, res: Response)=>{
+  try {
+     if(!req.user){
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized"
+      })
+     }
+      const userId = req.user.id;
+
+     const roomId = req.query.roomId as string;
+     const cursor = req.query.cursor as string | undefined;
+ if (!roomId) {
+        return res.status(400).json({
+          success: false,
+          message: "RoomId is required",
+        });
+      }
+        const role = await checkForUserRole(roomId, userId);
+
+      if (!role) {
+        return res.status(403).json({
+          success: false,
+          message: "You are no longer a member of this room",
+        });
+      }
+   
+
+
+const filter: any ={
+    roomId,
+    isDeleted: false
+}
+
+if(cursor){
+  filter._id={
+    $lt: cursor
+  }
+}
+
+const messages = await MessageModel.find(filter)
+.sort({
+  _id: -1
+})
+.limit(30)
+
+const nextCursor = 
+ messages.length>0
+ ? messages[messages.length-1]._id
+ : null
+
+  res.status(200).json({
+        success: true,
+        messages,
+        nextCursor,
+        hasMore: messages.length === 30,
+  })
+  } catch (error) {
+    console.error(error);
+
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      } )
+  }
+})
+
 export default RoomRouter;
