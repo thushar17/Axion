@@ -4,7 +4,8 @@ import { checkAuth, starMessage, getStarredMessages, muteRoom, archiveRoom, clea
 import { getRooms, createRoom, deleteRoom, renameRoom, leaveRoom, getMembers, addMember, removeMember, generateInvite } from "./services/room.service";
 import { editMessage, deleteMessage, pinMessage, toggleReaction, searchMessages, getPaginatedMessages } from "./services/message.service";
 import MessageBubble from "./components/MessageBubble";
-import ChatSidebar from "./components/ChatSidebar";
+import ChatSidebar from "./components/ChatSidebar"
+import ChatHeader from "./components/ChatHeader";
 import { getSenderId } from "./utils/getSenderId";
 import { useRouter } from "next/navigation";
 import {
@@ -155,9 +156,9 @@ export default function ChatPage() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameInput, setRenameInput] = useState("");
   const [showArchivedSection, setShowArchivedSection] = useState(false);
-const [cursor, setCursor] = useState<string | null>(null);
-const [hasMore, setHasMore] = useState(true);
-const [loadingMore, setLoadingMore] = useState(false);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // UI state
   const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -169,18 +170,18 @@ const [loadingMore, setLoadingMore] = useState(false);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const emojis = [
-  "👍",
-  "❤️",
-  "😂",
-  "😮",
-  "😢",
-  "🎉",
-];
-const [searchQuery, setSearchQuery] = useState("");
-const [searchResults, setSearchResults] = useState<any[]>([]);
-const [isSeraching, setIsSearching] = useState(false)
+    "👍",
+    "❤️",
+    "😂",
+    "😮",
+    "😢",
+    "🎉",
+  ];
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSeraching, setIsSearching] = useState(false)
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -223,7 +224,7 @@ const [isSeraching, setIsSearching] = useState(false)
   useEffect(() => {
     if (!user) return;
 
-    socket.on("connect", () => {});
+    socket.on("connect", () => { });
 
     socket.on("connect_error", (err) => {
       console.log("Socket Error:", err.message);
@@ -339,9 +340,10 @@ const [isSeraching, setIsSearching] = useState(false)
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === data.messageId
-            ? { ...msg, 
-              pinned: data.pinned 
-             }
+            ? {
+              ...msg,
+              pinned: data.pinned
+            }
             : msg
         )
       );
@@ -386,32 +388,32 @@ const [isSeraching, setIsSearching] = useState(false)
       });
     });
     socket.on(
-"user-reacted",
+      "user-reacted",
 
-(data)=>{
+      (data) => {
 
-setMessages(prev=>
+        setMessages(prev =>
 
-prev.map(message=>
+          prev.map(message =>
 
-message._id===data.messageId
+            message._id === data.messageId
 
-?{
+              ? {
 
-...message,
+                ...message,
 
-reactions:data.messageReaction
+                reactions: data.messageReaction
 
-}
+              }
 
-:message
+              : message
 
-)
+          )
 
-)
+        )
 
-}
-)
+      }
+    )
 
     return () => {
       socket.off("connect");
@@ -658,7 +660,7 @@ reactions:data.messageReaction
       if (!response.data.success) {
         toast.error(response.data.message || "Failed to pin message");
       }
-      else{
+      else {
         setContextMenu(null)
       }
     } catch (error) {
@@ -811,30 +813,30 @@ reactions:data.messageReaction
       );
     }
   };
-// handel readtion 
+  // handel readtion 
 
- const handleReaction=async (messageId:string, emoji : string)=>{
+  const handleReaction = async (messageId: string, emoji: string) => {
     try {
       const response = await toggleReaction(messageId, emoji);
       if (response.data.success) {
-      setContextMenu(null);
-    }
+        setContextMenu(null);
+      }
     } catch (error) {
       console.error(error)
     }
- }
+  }
 
 
 
 
-// storing pinned messages
+  // storing pinned messages
 
-const pinnedMessages = messages.filter((message)=> message.pinned?.isPinned )
-.sort(
-  (a,b)=> 
-    new Date(b.pinned?.pinnedAt || 0).getTime()-
-  new Date(a.pinned?.pinnedAt || 0).getTime()
-)
+  const pinnedMessages = messages.filter((message) => message.pinned?.isPinned)
+    .sort(
+      (a, b) =>
+        new Date(b.pinned?.pinnedAt || 0).getTime() -
+        new Date(a.pinned?.pinnedAt || 0).getTime()
+    )
 
   useEffect(() => {
     if (showStarredPanel) fetchStarredMessages();
@@ -842,78 +844,78 @@ const pinnedMessages = messages.filter((message)=> message.pinned?.isPinned )
 
 
 
-// messages search
+  // messages search
 
-useEffect(()=>{
-  if(!selectedRoom) return;
+  useEffect(() => {
+    if (!selectedRoom) return;
 
-  if(!searchQuery.trim()){
-    setSearchResults([])
-    return;
-  }
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      return;
+    }
 
-const timer = setTimeout( async() => {
-   try {
-    setIsSearching(true)
-     const response = await searchMessages(selectedRoom._id, searchQuery);
-     setSearchResults(response.data.messages)
-   } catch (error) {
-    console.log(error)
-   }
-   finally{
-    setIsSearching(false)
-   }
-}, 300);
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearching(true)
+        const response = await searchMessages(selectedRoom._id, searchQuery);
+        setSearchResults(response.data.messages)
+      } catch (error) {
+        console.log(error)
+      }
+      finally {
+        setIsSearching(false)
+      }
+    }, 300);
 
-return ()=> clearTimeout(timer)
+    return () => clearTimeout(timer)
 
-},[searchQuery, selectedRoom])
-
-
-const loadMessages = async (roomId: string) => {
-  try {
-    const response = await getPaginatedMessages(roomId);
-
-    setMessages(response.data.messages.reverse());
-
-    setCursor(response.data.nextCursor);
-
-    setHasMore(response.data.hasMore);
-    setTimeout(scrollToBottom, 100);
-  } catch (error) {
-    console.error(error);
-  }
-};
+  }, [searchQuery, selectedRoom])
 
 
-const loadOlderMessages = async () => {
-  if (!selectedRoom) return;
+  const loadMessages = async (roomId: string) => {
+    try {
+      const response = await getPaginatedMessages(roomId);
 
-  if (!cursor) return;
+      setMessages(response.data.messages.reverse());
 
-  if (!hasMore) return;
+      setCursor(response.data.nextCursor);
 
-  if (loadingMore) return;
+      setHasMore(response.data.hasMore);
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
-  try {
-    setLoadingMore(true);
 
-    const response = await getPaginatedMessages(selectedRoom._id, cursor);
+  const loadOlderMessages = async () => {
+    if (!selectedRoom) return;
 
-    setMessages((prev) => [
-      ...response.data.messages.reverse(),
-      ...prev,
-    ]);
+    if (!cursor) return;
 
-    setCursor(response.data.nextCursor);
+    if (!hasMore) return;
 
-    setHasMore(response.data.hasMore);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    setLoadingMore(false);
-  }
-};
+    if (loadingMore) return;
+
+    try {
+      setLoadingMore(true);
+
+      const response = await getPaginatedMessages(selectedRoom._id, cursor);
+
+      setMessages((prev) => [
+        ...response.data.messages.reverse(),
+        ...prev,
+      ]);
+
+      setCursor(response.data.nextCursor);
+
+      setHasMore(response.data.hasMore);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
@@ -977,304 +979,53 @@ const loadOlderMessages = async () => {
       )}
 
       {/* ══ LEFT SIDEBAR ══════════════════════════════════════════════════ */}
-       <ChatSidebar
-         mobileSidebarOpen={mobileSidebarOpen}
-         setShowCreateRoom={setShowCreateRoom}
-         activeRooms={activeRooms}
-         mutedRoomIds={mutedRoomIds}
-         selectedRoom={selectedRoom}
-         unreadMessageCount={unreadMessageCount}
-         setSelectedRoom={setSelectedRoom}
-         archivedRooms={archivedRooms}
-         showArchivedSection={showArchivedSection}
-         setShowArchivedSection={setShowArchivedSection}
-         user={user}
-       />
+      <ChatSidebar
+        mobileSidebarOpen={mobileSidebarOpen}
+        setShowCreateRoom={setShowCreateRoom}
+        activeRooms={activeRooms}
+        mutedRoomIds={mutedRoomIds}
+        selectedRoom={selectedRoom}
+        unreadMessageCount={unreadMessageCount}
+        setSelectedRoom={setSelectedRoom}
+        archivedRooms={archivedRooms}
+        showArchivedSection={showArchivedSection}
+        setShowArchivedSection={setShowArchivedSection}
+        user={user}
+      />
 
       {/* ══ CENTER AREA ═══════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Chat header */}
-        <header
-          className="h-14 flex items-center justify-between px-4 border-b shrink-0"
-          style={{
-            background: "var(--bg-sidebar)",
-            borderColor: "var(--border-subtle)",
-          }}
-        >
-          {/* Left: hamburger (mobile) + room name */}
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              className="md:hidden p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
-              style={{ color: "var(--text-muted)" }}
-              onClick={() => setMobileSidebarOpen(true)}
-            >
-              <Menu size={18} />
-            </button>
 
-            {selectedRoom ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <span style={{ color: "var(--text-muted)" }}>
-                  {selectedRoom.type === "private" ? (
-                    <Lock size={15} />
-                  ) : (
-                    <Hash size={15} />
-                  )}
-                </span>
-                {isRenaming ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleRenameRoom();
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <input
-                      type="text"
-                      value={renameInput}
-                      onChange={(e) => setRenameInput(e.target.value)}
-                      className="axion-input py-1 px-2 text-sm w-40"
-                      placeholder="Room name"
-                      autoFocus
-                    />
-                    <button
-                      type="submit"
-                      className="text-xs px-2.5 py-1 rounded-lg font-semibold text-white"
-                      style={{ background: "var(--accent)" }}
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRenaming(false);
-                        setRenameInput("");
-                      }}
-                      className="text-xs px-2.5 py-1 rounded-lg"
-                      style={{
-                        background: "var(--bg-surface-hover)",
-                        color: "var(--text-secondary)",
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                ) : (
-                  <h1
-                    className="text-sm font-semibold tracking-tight truncate"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    {selectedRoom.name}
-                  </h1>
-                )}
-                <span
-                  className="text-xs shrink-0"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  {members.length} member{members.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-            ) : (
-              <h1
-                className="text-sm font-semibold"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Select a channel
-              </h1>
-            )}
-          </div>
-
-          {/* Right actions */}
-          {selectedRoom && (
-            <div className="flex items-center gap-1 shrink-0">
-              {/* Search Box */}
-              <div className="relative flex items-center mr-2 hidden sm:flex">
-                <Search size={14} className="absolute left-2.5" style={{ color: "var(--text-muted)" }} />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 text-sm rounded-lg border transition-all duration-300 w-32 focus:w-48 md:w-40 md:focus:w-64 outline-none"
-                  style={{
-                    background: "var(--bg-app)",
-                    borderColor: "var(--border-subtle)",
-                    color: "var(--text-primary)",
-                  }}
-                />
-                {searchResults.length > 0 && (
-                  <div
-                    className="absolute top-full right-0 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border shadow-2xl z-50"
-                    style={{
-                      background: "var(--bg-surface)",
-                      borderColor: "var(--border)",
-                    }}
-                  >
-                    <div className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider" style={{ borderColor: "var(--border-subtle)", color: "var(--text-muted)" }}>
-                      Search Results
-                    </div>
-                    {searchResults.map((message) => (
-                      <button
-                        key={message._id}
-                        onClick={() => {
-                          scrollToMessage(message._id);
-                          setSearchResults([]);
-                          setSearchQuery("");
-                        }}
-                        className="w-full text-left px-3 py-2.5 transition-colors border-b last:border-0 hover:bg-[var(--bg-surface-hover)]"
-                        style={{ borderColor: "var(--border-subtle)" }}
-                      >
-                        <div className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
-                          {message.content}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Starred toggle */}
-              <button
-                onClick={() => setShowStarredPanel((v) => !v)}
-                className="p-2 rounded-lg transition-all"
-                style={{
-                  background: showStarredPanel
-                    ? "var(--accent-muted)"
-                    : "transparent",
-                  color: showStarredPanel
-                    ? "var(--accent-hover)"
-                    : "var(--text-muted)",
-                }}
-                title="Starred messages"
-              >
-                <Star size={16} fill={showStarredPanel ? "currentColor" : "none"} />
-              </button>
-
-              {/* Members toggle */}
-              <button
-                onClick={() => setShowMembersPanel((v) => !v)}
-                className="p-2 rounded-lg transition-all"
-                style={{
-                  background: showMembersPanel
-                    ? "var(--accent-muted)"
-                    : "transparent",
-                  color: showMembersPanel
-                    ? "var(--accent-hover)"
-                    : "var(--text-muted)",
-                }}
-                title="Members"
-              >
-                <Users size={16} />
-              </button>
-
-              {/* Room settings dropdown */}
-              <div className="relative">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowRoomSettings((v) => !v);
-                  }}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-all"
-                  style={{ color: "var(--text-muted)" }}
-                  title="Room settings"
-                >
-                  <MoreHorizontal size={16} />
-                </button>
-
-                {showRoomSettings && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute right-0 mt-1 w-52 rounded-xl border py-1.5 z-50 shadow-2xl"
-                    style={{
-                      background: "var(--bg-surface)",
-                      borderColor: "var(--border)",
-                    }}
-                  >
-                    {/* Mute */}
-                    <DropdownItem
-                      icon={
-                        mutedRoomIds.includes(selectedRoom._id) ? (
-                          <Volume2 size={14} />
-                        ) : (
-                          <VolumeX size={14} />
-                        )
-                      }
-                      label={
-                        mutedRoomIds.includes(selectedRoom._id)
-                          ? "Unmute Room"
-                          : "Mute Room"
-                      }
-                      onClick={() => {
-                        handleMuteRoom(selectedRoom._id);
-                        setShowRoomSettings(false);
-                      }}
-                    />
-                    {/* Archive */}
-                    <DropdownItem
-                      icon={<Archive size={14} />}
-                      label={
-                        archivedRoomIds.includes(selectedRoom._id)
-                          ? "Unarchive Room"
-                          : "Archive Room"
-                      }
-                      onClick={() => handleArchiveRoom(selectedRoom._id)}
-                    />
-                    {/* Clear chat */}
-                    <DropdownItem
-                      icon={<Trash2 size={14} />}
-                      label="Clear Chat"
-                      onClick={() => {
-                        setShowClearConfirm(true);
-                        setShowRoomSettings(false);
-                      }}
-                    />
-                    {/* Rename (admin only) */}
-                    {isAdmin && (
-                      <DropdownItem
-                        icon={<Pencil size={14} />}
-                        label="Rename Room"
-                        onClick={() => {
-                          setIsRenaming(true);
-                          setRenameInput(selectedRoom.name);
-                          setShowRoomSettings(false);
-                        }}
-                      />
-                    )}
-
-                    <div
-                      className="my-1.5 border-t"
-                      style={{ borderColor: "var(--border-subtle)" }}
-                    />
-
-                    {/* Leave */}
-                    <DropdownItem
-                      icon={<LogOut size={14} />}
-                      label="Leave Room"
-                      danger
-                      onClick={() => {
-                        setShowLeaveConfirm(true);
-                        setShowRoomSettings(false);
-                      }}
-                    />
-
-                    {/* Delete (admin only) */}
-                    {isAdmin && (
-                      <DropdownItem
-                        icon={<Trash2 size={14} />}
-                        label="Delete Room"
-                        danger
-                        onClick={() => {
-                          setShowDeleteConfirm(true);
-                          setShowRoomSettings(false);
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </header>
-
+        <ChatHeader
+          setMobileSidebarOpen={setMobileSidebarOpen}
+          selectedRoom={selectedRoom}
+          isRenaming={isRenaming}
+          handleRenameRoom={handleRenameRoom}
+          renameInput={renameInput}
+          setRenameInput={setRenameInput}
+          members={members}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchResults={searchResults}
+          scrollToMessage={scrollToMessage}
+          setSearchResults={setSearchResults}
+          showStarredPanel={showStarredPanel}
+          setShowStarredPanel={setShowStarredPanel}
+          showMembersPanel={showMembersPanel}
+          setShowMembersPanel={setShowMembersPanel}
+          showRoomSettings={showRoomSettings}
+          setShowRoomSettings={setShowRoomSettings}
+          mutedRoomIds={mutedRoomIds}
+          handleMuteRoom={handleMuteRoom}
+          archivedRoomIds={archivedRoomIds}
+          handleArchiveRoom={handleArchiveRoom}
+          setShowClearConfirm={setShowClearConfirm}
+          isAdmin={isAdmin}
+          setIsRenaming={setIsRenaming}
+          setShowLeaveConfirm={setShowLeaveConfirm}
+          setShowDeleteConfirm={setShowDeleteConfirm}
+        />
         {/* Pinned message banner */}
         {selectedRoom && pinnedMessages.length > 0 && (
           <div
@@ -1294,8 +1045,8 @@ const loadOlderMessages = async () => {
                 Pinned Messages ({pinnedMessages.length})
               </span>
             </div>
-            
-            <button 
+
+            <button
               className="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
               style={{
                 color: "var(--accent)",
@@ -1342,26 +1093,26 @@ const loadOlderMessages = async () => {
           )}
 
           {messages.map((message, idx) => (
-             <MessageBubble
-               key={message._id}
-               message={message}
-               idx={idx}
-               messages={messages}
-               user={user}
-               hoveredMsgId={hoveredMsgId}
-               setHoveredMsgId={setHoveredMsgId}
-               setContextMenu={setContextMenu}
-               scrollToMessage={scrollToMessage}
-               handleReaction={handleReaction}
-               DeliveryTick={DeliveryTick}
-               setReplyingTo={setReplyingTo}
-               setEditingMessageId={setEditingMessageId}
-               setInput={setInput}
-               inputRef={inputRef}
-             />
+            <MessageBubble
+              key={message._id}
+              message={message}
+              idx={idx}
+              messages={messages}
+              user={user}
+              hoveredMsgId={hoveredMsgId}
+              setHoveredMsgId={setHoveredMsgId}
+              setContextMenu={setContextMenu}
+              scrollToMessage={scrollToMessage}
+              handleReaction={handleReaction}
+              DeliveryTick={DeliveryTick}
+              setReplyingTo={setReplyingTo}
+              setEditingMessageId={setEditingMessageId}
+              setInput={setInput}
+              inputRef={inputRef}
+            />
           ))}
 
-          
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -1741,32 +1492,32 @@ const loadOlderMessages = async () => {
 
 
 
-        <div
-  className="px-3 py-2 border-b"
-  style={{ borderColor: "var(--border-subtle)" }}
->
-  <p
-    className="text-xs mb-2"
-    style={{ color: "var(--text-muted)" }}
-  >
-    React
-  </p>
+              <div
+                className="px-3 py-2 border-b"
+                style={{ borderColor: "var(--border-subtle)" }}
+              >
+                <p
+                  className="text-xs mb-2"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  React
+                </p>
 
-  <div className="flex gap-2 flex-wrap">
-    {emojis.map((emoji) => (
-      <button
-        key={emoji}
-        onClick={() =>
-          handleReaction(contextMenu.message._id, emoji)
-        }
-        className="w-8 h-8 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
-      >
-        {emoji}
-      </button>
-    ))}
-  </div>
-</div>
-              
+                <div className="flex gap-2 flex-wrap">
+                  {emojis.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() =>
+                        handleReaction(contextMenu.message._id, emoji)
+                      }
+                      className="w-8 h-8 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <ContextItem
                 icon={
                   <Star
@@ -1797,7 +1548,7 @@ const loadOlderMessages = async () => {
                 <ContextItem
                   icon={<Pin size={13} />}
                   label={
-                    contextMenu.message.pinned?.isPinned 
+                    contextMenu.message.pinned?.isPinned
                       ? "Unpin"
                       : "Pin"
                   }
@@ -2029,40 +1780,6 @@ const loadOlderMessages = async () => {
 
 /* ── Helper sub-components ───────────────────────────────────────────────── */
 
-function DropdownItem({
-  icon,
-  label,
-  onClick,
-  danger = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full text-left px-3.5 py-2 text-sm flex items-center gap-2.5 transition-all"
-      style={{
-        color: danger ? "var(--error)" : "var(--text-secondary)",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.background = danger
-          ? "var(--error-bg)"
-          : "var(--bg-surface-hover)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = "transparent";
-      }}
-    >
-      <span style={{ color: danger ? "var(--error)" : "var(--text-muted)" }}>
-        {icon}
-      </span>
-      {label}
-    </button>
-  );
-}
 
 function ContextItem({
   icon,
