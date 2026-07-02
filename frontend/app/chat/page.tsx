@@ -6,6 +6,7 @@ import { editMessage, deleteMessage, pinMessage, toggleReaction, searchMessages,
 import ChatSidebar from "./components/ChatSidebar"
 import ChatHeader from "./components/ChatHeader";
 import ChatMessage from "./components/ChatMessage";
+import MessageInput from "./components/MessageInput";
 import { getSenderId } from "./utils/getSenderId";
 import { useRouter } from "next/navigation";
 import {
@@ -1127,45 +1128,13 @@ export default function ChatPage() {
         )}
 
         {/* Message input */}
-        <form
-          onSubmit={sendMessage}
-          className="px-4 py-3 border-t shrink-0"
-          style={{
-            background: "var(--bg-sidebar)",
-            borderColor: "var(--border-subtle)",
-          }}
-        >
-          <div
-            className="flex items-center gap-2 rounded-xl px-3 py-2 border"
-            style={{
-              background: "var(--bg-input)",
-              borderColor: "var(--border)",
-            }}
-          >
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={handelInputChange}
-              placeholder={
-                selectedRoom
-                  ? `Message #${selectedRoom.name}`
-                  : "Select a channel"
-              }
-              disabled={!selectedRoom}
-              className="flex-1 bg-transparent outline-none text-sm"
-              style={{ color: "var(--text-primary)" }}
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || !selectedRoom}
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 disabled:opacity-30"
-              style={{ background: "var(--accent)", color: "white" }}
-            >
-              <Send size={14} />
-            </button>
-          </div>
-        </form>
+      <MessageInput 
+        sendMessage={sendMessage}
+        inputRef={inputRef}
+        handelInputChange={handelInputChange}
+        selectedRoom={selectedRoom}
+        input={input}
+      />
       </div>
 
       {/* ══ RIGHT SIDEBAR — Members ════════════════════════════════════════ */}
