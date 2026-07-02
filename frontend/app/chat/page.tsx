@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { formatMessageTimestamp } from "./utils/formatTimestamp";
 import { groupedReaction } from "./utils/groupedReaction";
+import { useSocket } from "./hooks/useScoket";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -135,7 +136,7 @@ export default function ChatPage() {
   const [members, setMembers] = useState<any[]>([]);
   const [showAddMember, setShowAddMember] = useState(false);
   const [email, setEmail] = useState("");
-  const [typingUsers, setTypingUsers] = useState<any[]>([]);
+
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState<{
     [roomId: string]: number;
@@ -174,6 +175,7 @@ export default function ChatPage() {
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
 
   const emojis = [
     "👍",
@@ -224,219 +226,28 @@ export default function ChatPage() {
     verifyAuth();
   }, [router]);
 
-  // ── Socket events ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user) return;
 
-    socket.on("connect", () => { });
+  const { typingUsers,
+    emitMessage,
+    emitStopTyping,
+    emitTyping,
+    emitJoinRooms,
+    emitJoinRoom
+  } = useSocket(
+    {
+      selectedRoomRef,
+      setMessages,
+      user,
+      scrollToBottom,
+      setUnreadMessageCount,
+      setAllRooms,
+      setSelectedRoom,
+      setMembers,
+      router
+    }
+  )
 
-    socket.on("connect_error", (err) => {
-      console.log("Socket Error:", err.message);
-      router.push("/auth/login");
-    });
 
-    socket.on("room-joined", (roomId) => {
-      socket.emit("message-seen", roomId);
-    });
-
-    socket.on("new-message", (message) => {
-      const currentRoom = selectedRoomRef.current;
-      if (currentRoom && message.roomId === currentRoom._id) {
-        setMessages((prev) => [...prev, message]);
-        if (getSenderId(message.sender) !== user.id) {
-          socket.emit("message-seen", currentRoom._id);
-        }
-        setTimeout(scrollToBottom, 60);
-      } else {
-        setUnreadMessageCount((prev) => ({
-          ...prev,
-          [message.roomId]: (prev[message.roomId] || 0) + 1,
-        }));
-      }
-      socket.emit("message-delivered", { messageId: message._id });
-    });
-
-    socket.on("message-status-updated", (data) => {
-      const ids = Array.isArray(data.messageId)
-        ? data.messageId
-        : [data.messageId];
-      setMessages((prev) =>
-        prev.map((msg) =>
-          ids.includes(String(msg._id))
-            ? { ...msg, status: data.status }
-            : msg
-        )
-      );
-    });
-
-    socket.on("typing-status", (data) => {
-      setTypingUsers((prev) => {
-        if (prev.includes(data.username)) return prev;
-        return [...prev, data.username];
-      });
-    });
-
-    socket.on("stop-typing-status", (data) => {
-      setTypingUsers((prev) =>
-        prev.filter((name) => name !== data.username)
-      );
-    });
-
-    socket.on("member-removed", (data) => {
-      if (data.memberId === user.id) {
-        setAllRooms((prev) => {
-          const updatedRooms = prev.filter(
-            (room) => room._id !== data.roomId
-          );
-          if (selectedRoomRef.current?._id === data.roomId) {
-            setSelectedRoom(updatedRooms[0] ?? null);
-            setMessages([]);
-            setMembers([]);
-          }
-          return updatedRooms;
-        });
-        return;
-      }
-      setMembers((prev) =>
-        prev.filter((member) => member.user._id !== data.memberId)
-      );
-    });
-
-    socket.on("room-deleted", (data) => {
-      setAllRooms((prev) => {
-        const roomId = selectedRoomRef.current?._id;
-        const updateRoom = prev.filter((room) => room._id !== data.roomId);
-        if (roomId === data.roomId) {
-          setSelectedRoom(updateRoom[0] || null);
-          setMembers([]);
-          setMessages([]);
-        }
-        return updateRoom;
-      });
-    });
-
-    socket.on("message-deleted", (data) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === data.messageId
-            ? { ...msg, content: data.content, isDeleted: true }
-            : msg
-        )
-      );
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.replyTo && msg.replyTo._id === data.messageId) {
-            return {
-              ...msg,
-              replyTo: {
-                ...msg.replyTo,
-                content: data.content,
-                isDeleted: true,
-              },
-            };
-          }
-          return msg;
-        })
-      );
-    });
-
-    socket.on("message-pinned", (data) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === data.messageId
-            ? {
-              ...msg,
-              pinned: data.pinned
-            }
-            : msg
-        )
-      );
-    });
-
-    socket.on("message-edit", (data) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === data.messageId
-            ? { ...msg, content: data.content, isEdited: data.isEdited }
-            : msg
-        )
-      );
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.replyTo && msg.replyTo._id === data.messageId) {
-            return {
-              ...msg,
-              replyTo: {
-                ...msg.replyTo,
-                content: data.content,
-                isEdited: data.isEdited,
-              },
-            };
-          }
-          return msg;
-        })
-      );
-    });
-
-    socket.on("room-renamed", (data) => {
-      setAllRooms((prev) =>
-        prev.map((room) =>
-          room._id === data.roomId ? { ...room, name: data.newName } : room
-        )
-      );
-      setSelectedRoom((current: any) => {
-        if (current && current._id === data.roomId) {
-          return { ...current, name: data.newName };
-        }
-        return current;
-      });
-    });
-    socket.on(
-      "user-reacted",
-
-      (data) => {
-
-        setMessages(prev =>
-
-          prev.map(message =>
-
-            message._id === data.messageId
-
-              ? {
-
-                ...message,
-
-                reactions: data.messageReaction
-
-              }
-
-              : message
-
-          )
-
-        )
-
-      }
-    )
-
-    return () => {
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("room-joined");
-      socket.off("new-message");
-      socket.off("message-status-updated");
-      socket.off("typing-status");
-      socket.off("stop-typing-status");
-      socket.off("member-removed");
-      socket.off("room-deleted");
-      socket.off("message-deleted");
-      socket.off("message-pinned");
-      socket.off("message-edit");
-      socket.off("room-renamed");
-      socket.off("user-reacted")
-      socket.disconnect();
-    };
-  }, [user, router, scrollToBottom]);
 
   // ── Send message ──────────────────────────────────────────────────────────
   const sendMessage = (e: React.FormEvent) => {
@@ -447,23 +258,10 @@ export default function ChatPage() {
       handelEditMessage();
       return;
     }
+    //  socket emits
+    emitMessage(selectedRoom, input, replyingTo)
 
-    socket.emit(
-      "send-message",
-      {
-        roomId: selectedRoom._id,
-        content: input,
-        replyTo: replyingTo?._id,
-      },
-      (response: any) => {
-        console.log("ACK:", response);
-      }
-    );
-
-    socket.emit("stop-typing", {
-      roomId: selectedRoom.name,
-      username: user.username,
-    });
+    emitStopTyping(selectedRoom)
 
     setInput("");
     setReplyingTo(null);
@@ -479,7 +277,7 @@ export default function ChatPage() {
       }
       setAllRooms(response.data.data);
       const roomIds = response.data.data.map((r: any) => r._id);
-      socket.emit("join-rooms", roomIds);
+      emitJoinRooms(roomIds);
       if (response.data.data.length > 0) {
         setSelectedRoom(response.data.data[0]);
       }
@@ -524,7 +322,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!selectedRoom) return;
-    socket.emit("join-room", selectedRoom._id);
+    emitJoinRoom(selectedRoom);
     setUnreadMessageCount((prev) => {
       const newCount = { ...prev };
       delete newCount[selectedRoom._id];
@@ -556,16 +354,10 @@ export default function ChatPage() {
   const handelInputChange = (e: any) => {
     setInput(e.target.value);
     if (!selectedRoom) return;
-    socket.emit("typing", {
-      roomId: selectedRoom._id,
-      username: user?.username,
-    });
+    emitTyping(selectedRoom);
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
     typingTimeout.current = setTimeout(() => {
-      socket.emit("stop-typing", {
-        roomId: selectedRoom._id,
-        username: user.username,
-      });
+      emitStopTyping(selectedRoom);
     }, 1000);
   };
 
@@ -1131,13 +923,13 @@ export default function ChatPage() {
         )}
 
         {/* Message input */}
-      <MessageInput 
-        sendMessage={sendMessage}
-        inputRef={inputRef}
-        handelInputChange={handelInputChange}
-        selectedRoom={selectedRoom}
-        input={input}
-      />
+        <MessageInput
+          sendMessage={sendMessage}
+          inputRef={inputRef}
+          handelInputChange={handelInputChange}
+          selectedRoom={selectedRoom}
+          input={input}
+        />
       </div>
 
       {/* ══ RIGHT SIDEBAR — Members ════════════════════════════════════════ */}
@@ -1360,6 +1152,3 @@ export default function ChatPage() {
     </main>
   );
 }
-
-/* ── Helper sub-components ───────────────────────────────────────────────── */
-
