@@ -19,7 +19,7 @@ type Props = {
     setReplyingTo: React.Dispatch<React.SetStateAction<any | null>>;
     setEditingMessageId: React.Dispatch<React.SetStateAction<string | null>>;
     setInput: React.Dispatch<React.SetStateAction<string>>;
-    inputRef: React.RefObject<HTMLInputElement>;
+    inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 export default function MessageBubble({
