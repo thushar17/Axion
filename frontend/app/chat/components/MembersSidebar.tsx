@@ -2,7 +2,7 @@ import React from "react";
 import { Avatar } from "@/src/components/Avatar";
 import { StatusDot } from "@/src/components/StatusDot";
 import { Crown, X, Plus, Link2, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 type Props = {
   members: any[];
