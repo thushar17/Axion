@@ -5,10 +5,8 @@ import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.share
 
 type Props = {
   selectedRoomRef: React.MutableRefObject<any>;
-  setMessages: React.Dispatch<React.SetStateAction<any[]>>;
+  onActiveRoomCleared: () => void;
   user: any;
-  scrollToBottom: () => void;
-  setUnreadMessageCount: React.Dispatch<React.SetStateAction<{ [roomId: string]: number }>>;
   setAllRooms: React.Dispatch<React.SetStateAction<any[]>>;
   setSelectedRoom: React.Dispatch<React.SetStateAction<any>>;
   setMembers: React.Dispatch<React.SetStateAction<any[]>>;
@@ -17,10 +15,8 @@ type Props = {
 
 export function useSocket({
   selectedRoomRef,
-  setMessages,
+  onActiveRoomCleared,
   user,
-  scrollToBottom,
-  setUnreadMessageCount,
   setAllRooms,
   setMembers,
   setSelectedRoom,
@@ -82,23 +78,6 @@ export function useSocket({
 
 
 
-    // new message 
-    socket.on("new-message", (message) => {
-      const currentRoom = selectedRoomRef.current;
-      if (currentRoom && message.roomId === currentRoom._id) {
-        setMessages((prev) => [...prev, message]);
-        if (getSenderId(message.sender) !== user.id) {
-          socket.emit("message-seen", currentRoom._id);
-        }
-        setTimeout(scrollToBottom, 60);
-      } else {
-        setUnreadMessageCount((prev: any) => ({
-          ...prev,
-          [message.roomId]: (prev[message.roomId] || 0) + 1,
-        }));
-      }
-      socket.emit("message-delivered", { messageId: message._id });
-    });
 
 
     socket.on("typing-status", (data) => {
@@ -119,20 +98,6 @@ export function useSocket({
     });
 
 
-    // message status update 
-    socket.on("message-status-updated", (data) => {
-      const ids = Array.isArray(data.messageId)
-        ? data.messageId
-        : [data.messageId];
-      setMessages((prev) =>
-        prev.map((msg) =>
-          ids.includes(String(msg._id))
-            ? { ...msg, status: data.status }
-            : msg
-        )
-      );
-    });
-
     // remove members
 
     socket.on("member-removed", (data) => {
@@ -143,7 +108,7 @@ export function useSocket({
           );
           if (selectedRoomRef.current?._id === data.roomId) {
             setSelectedRoom(updatedRooms[0] ?? null);
-            setMessages([]);
+            onActiveRoomCleared();
             setMembers([]);
           }
           return updatedRooms;
@@ -164,7 +129,7 @@ export function useSocket({
         if (roomId === data.roomId) {
           setSelectedRoom(updateRoom[0] || null);
           setMembers([]);
-          setMessages([]);
+          onActiveRoomCleared();
         }
         return updateRoom;
       });
@@ -172,75 +137,6 @@ export function useSocket({
 
 
 
-    // message delete 
-
-
-    socket.on("message-deleted", (data) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === data.messageId
-            ? { ...msg, content: data.content, isDeleted: true }
-            : msg
-        )
-      );
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.replyTo && msg.replyTo._id === data.messageId) {
-            return {
-              ...msg,
-              replyTo: {
-                ...msg.replyTo,
-                content: data.content,
-                isDeleted: true,
-              },
-            };
-          }
-          return msg;
-        })
-      );
-    });
-
-    // pin message
-    socket.on("message-pinned", (data) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === data.messageId
-            ? {
-              ...msg,
-              pinned: data.pinned
-            }
-            : msg
-        )
-      );
-    });
-
-
-    // edit message
-
-    socket.on("message-edit", (data) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === data.messageId
-            ? { ...msg, content: data.content, isEdited: data.isEdited }
-            : msg
-        )
-      );
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.replyTo && msg.replyTo._id === data.messageId) {
-            return {
-              ...msg,
-              replyTo: {
-                ...msg.replyTo,
-                content: data.content,
-                isEdited: data.isEdited,
-              },
-            };
-          }
-          return msg;
-        })
-      );
-    });
 
 
     // rename room 
@@ -259,52 +155,17 @@ export function useSocket({
       });
     });
 
-    // user reacted 
-    socket.on(
-      "user-reacted",
-
-      (data) => {
-
-        setMessages(prev =>
-
-          prev.map(message =>
-
-            message._id === data.messageId
-
-              ? {
-
-                ...message,
-
-                reactions: data.messageReaction
-
-              }
-
-              : message
-
-          )
-
-        )
-
-      }
-    )
-
 
 
     return () => {
       socket.off("connect");
       socket.off("connect_error");
-      socket.off("new-message");
       socket.off("typing-status");
       socket.off("stop-typing-status");
       socket.off("room-joined");
-      socket.off("message-status-updated");
       socket.off("member-removed");
       socket.off("room-deleted");
-      socket.off("message-deleted");
-      socket.off("message-pinned");
-      socket.off("message-edit");
       socket.off("room-renamed");
-      socket.off("user-reacted");
     };
   }, [user, router]);
 

@@ -57,6 +57,7 @@ import {
 import { formatMessageTimestamp } from "./utils/formatTimestamp";
 import { groupedReaction } from "./utils/groupedReaction";
 import { useSocket } from "./hooks/useScoket";
+import { useMessage } from "./hooks/useMessage";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -121,8 +122,7 @@ export default function ChatPage() {
 
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [input, setInput] = useState("");
+ 
   const [roomName, setRoomName] = useState("");
   const [roomType, setRoomType] = useState("public");
   const [allRooms, setAllRooms] = useState<any[]>([]);
@@ -142,28 +142,19 @@ export default function ChatPage() {
     [roomId: string]: number;
   }>({});
   const [inviteLink, setInviteLink] = useState("");
-  const [replyingTo, setReplyingTo] = useState<any>(null);
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+
   const [editedContent, setEditedContent] = useState("");
 
-  const [starredMessageIds, setStarredMessageIds] = useState<string[]>([]);
-  const [starredMessages, setStarredMessages] = useState<any[]>([]);
-  const [showStarredPanel, setShowStarredPanel] = useState(false);
+
+
   const [mutedRoomIds, setMutedRoomIds] = useState<string[]>([]);
   const [archivedRoomIds, setArchivedRoomIds] = useState<string[]>([]);
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    message: any;
-  } | null>(null);
+
   const [showRoomSettings, setShowRoomSettings] = useState(false);
   const [isPinnedSheetOpen, setIsPinnedSheetOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameInput, setRenameInput] = useState("");
   const [showArchivedSection, setShowArchivedSection] = useState(false);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   // UI state
   const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -173,7 +164,6 @@ export default function ChatPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showMembersPanel, setShowMembersPanel] = useState(true);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
 
@@ -189,9 +179,6 @@ export default function ChatPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSeraching, setIsSearching] = useState(false)
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
 
   useEffect(() => {
     if (user) {
@@ -226,6 +213,8 @@ export default function ChatPage() {
     verifyAuth();
   }, [router]);
 
+    // message hook
+  let setMessagesFn: any;
 
   const { typingUsers,
     emitMessage,
@@ -236,36 +225,59 @@ export default function ChatPage() {
   } = useSocket(
     {
       selectedRoomRef,
-      setMessages,
+      onActiveRoomCleared: () => setMessagesFn?.([]),
       user,
-      scrollToBottom,
-      setUnreadMessageCount,
       setAllRooms,
       setSelectedRoom,
       setMembers,
       router
     }
-  )
+  );
+
+  const messageHook = useMessage({
+    user,
+    selectedRoomRef,
+    setUnreadMessageCount,
+    emitMessage,
+    emitStopTyping
+  });
+  setMessagesFn = messageHook.setMessages;
+
+  const {
+    messages,
+    setMessages,
+    editingMessageId,
+    setEditingMessageId,
+    handleEditMessage,
+    handleDeleteMessage,
+    scrollToBottom,
+    loadMessages,
+    messagesEndRef,
+    contextMenu,
+    setContextMenu,
+    handlePinMessage,
+    setStarredMessageIds,
+    starredMessageIds,
+    handleStarMessage,
+    showStarredPanel,
+    setShowStarredPanel,
+    fetchStarredMessages,
+    starredMessages,
+    loadingMore,
+    handleReaction,
+    pinnedMessages,
+    loadOlderMessages,
+    sendMessage,
+    input,
+    setInput,
+    replyingTo,
+    setReplyingTo
+  } = messageHook;
 
 
 
-  // ── Send message ──────────────────────────────────────────────────────────
-  const sendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !selectedRoom) return;
 
-    if (editingMessageId) {
-      handelEditMessage();
-      return;
-    }
-    //  socket emits
-    emitMessage(selectedRoom, input, replyingTo)
 
-    emitStopTyping(selectedRoom)
-
-    setInput("");
-    setReplyingTo(null);
-  };
 
   // ── Fetch rooms ───────────────────────────────────────────────────────────
   const fetchRooms = async () => {
@@ -413,84 +425,18 @@ export default function ChatPage() {
   };
 
   // ── Edit message ──────────────────────────────────────────────────────────
-  const handelEditMessage = async () => {
-    if (!input.trim()) return;
-    try {
-      const response = await editMessage(editingMessageId as string, input);
-      if (response.data.success) {
-        setMessages(
-          messages.map((msg) =>
-            msg._id === editingMessageId
-              ? { ...msg, content: input }
-              : msg
-          )
-        );
-        setEditingMessageId(null);
-        setInput("");
-      } else {
-        toast.error(response.data.message || "Failed to edit message");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to edit message");
-    }
-  };
-
+  
+    
   // ── Delete message ────────────────────────────────────────────────────────
-  const handleDeleteMessage = async (messageId: string) => {
-    try {
-      const response = await deleteMessage(messageId);
-      if (!response.data.success) {
-        toast.error(response.data.message || "Failed to delete message");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete message");
-    }
-  };
+
 
   // ── Pin message ───────────────────────────────────────────────────────────
-  const handlePinMessage = async (messageId: string) => {
-    try {
-      const response = await pinMessage(messageId);
-      if (!response.data.success) {
-        toast.error(response.data.message || "Failed to pin message");
-      }
-      else {
-        setContextMenu(null)
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to pin message");
-    }
-  };
+
 
   // ── Star message ──────────────────────────────────────────────────────────
-  const handleStarMessage = async (messageId: string) => {
-    try {
-      const response = await starMessage(messageId);
-      if (response.data.success) {
-        const starred = response.data.starredMessages;
-        setStarredMessageIds(starred);
-        if (showStarredPanel) fetchStarredMessages();
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to star message");
-    }
-  };
+
 
   // ── Fetch starred ─────────────────────────────────────────────────────────
-  const fetchStarredMessages = async () => {
-    try {
-      const response = await getStarredMessages();
-      if (response.data.success) {
-        setStarredMessages(response.data.messages);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
   // ── Mute room ─────────────────────────────────────────────────────────────
   const handleMuteRoom = async (roomId: string) => {
@@ -609,31 +555,6 @@ export default function ChatPage() {
       );
     }
   };
-  // handel readtion 
-
-  const handleReaction = async (messageId: string, emoji: string) => {
-    try {
-      const response = await toggleReaction(messageId, emoji);
-      if (response.data.success) {
-        setContextMenu(null);
-      }
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-
-
-
-  // storing pinned messages
-
-  const pinnedMessages = messages.filter((message) => message.pinned?.isPinned)
-    .sort(
-      (a, b) =>
-        new Date(b.pinned?.pinnedAt || 0).getTime() -
-        new Date(a.pinned?.pinnedAt || 0).getTime()
-    )
-
   useEffect(() => {
     if (showStarredPanel) fetchStarredMessages();
   }, [showStarredPanel]);
@@ -666,52 +587,6 @@ export default function ChatPage() {
     return () => clearTimeout(timer)
 
   }, [searchQuery, selectedRoom])
-
-
-  const loadMessages = async (roomId: string) => {
-    try {
-      const response = await getPaginatedMessages(roomId);
-
-      setMessages(response.data.messages.reverse());
-
-      setCursor(response.data.nextCursor);
-
-      setHasMore(response.data.hasMore);
-      setTimeout(scrollToBottom, 100);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-
-  const loadOlderMessages = async () => {
-    if (!selectedRoom) return;
-
-    if (!cursor) return;
-
-    if (!hasMore) return;
-
-    if (loadingMore) return;
-
-    try {
-      setLoadingMore(true);
-
-      const response = await getPaginatedMessages(selectedRoom._id, cursor);
-
-      setMessages((prev) => [
-        ...response.data.messages.reverse(),
-        ...prev,
-      ]);
-
-      setCursor(response.data.nextCursor);
-
-      setHasMore(response.data.hasMore);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
 
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
@@ -856,7 +731,7 @@ export default function ChatPage() {
 
         {/* Messages area */}
         <ChatMessage
-          loadOlderMessages={loadOlderMessages}
+          loadOlderMessages={() => loadOlderMessages(selectedRoom?._id)}
           loadingMore={loadingMore}
           selectedRoom={selectedRoom}
           messages={messages}
