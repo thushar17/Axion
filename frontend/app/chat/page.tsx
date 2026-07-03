@@ -1,10 +1,11 @@
 "use client";
 
-import { checkAuth, clearChat } from "./services/auth.service";
+import { clearChat } from "./services/auth.service";
 import { useMembers } from "./hooks/useMembers";
 import { useSearch } from "./hooks/useSearch";
 import { useTypingIndicator } from "./hooks/useTypingIndicator";
 import { useMessageStore } from "./hooks/useMessageStore";
+import { useChatUI } from "./hooks/useChatUI";
 import ChatSidebar from "./components/ChatSidebar"
 import ChatHeader from "./components/ChatHeader";
 import ChatMessage from "./components/ChatMessage";
@@ -17,72 +18,52 @@ import { TypingIndicator } from "./components/TypingIndicator";
 import { CreateRoomModal } from "./components/CreateRoomModal";
 import { AddMemberModal } from "./components/AddMemberModal";
 import { DeleteRoomConfirmModal, LeaveRoomConfirmModal, ClearChatConfirmModal } from "./components/RoomConfirmModals";
+import { ChatLoadingScreen } from "./components/ChatLoadingScreen";
 import { useRouter } from "next/navigation";
+import { useAuth } from "./hooks/useAuth";
+import { useGlobalClickClose } from "./hooks/useGlobalClickClose";
+import { REACTION_EMOJIS } from "./constants/reactions";
 import {
   useEffect,
-  useState,
   useRef,
 } from "react";
-import { socket } from "@/src/lib/socket";
-import { toast } from "sonner";
 import { PinnedMessagesSheet } from "@/src/components/PinnedMessagesSheet";
 import {
-  X,
-  Pin,
-  Zap
+  Pin
 } from "lucide-react";
 import { useSocket } from "./hooks/useScoket";
 import { useMessage } from "./hooks/useMessage";
 import { useRoom } from "./hooks/useRoom";
 import { useRoomStore } from "./hooks/useRoomStore";
 
-
-
-
-
-
-// hook for room states
-
-
-
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 
 export default function ChatPage() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const { user, loading } = useAuth();
 
   const selectedRoomRef = useRef<any>(null);
-
-
-  const [unreadMessageCount, setUnreadMessageCount] = useState<{
-    [roomId: string]: number;
-  }>({});
-  const [isPinnedSheetOpen, setIsPinnedSheetOpen] = useState(false);
-
-  const [showArchivedSection, setShowArchivedSection] = useState(false);
-
-  // UI state
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [showMembersPanel, setShowMembersPanel] = useState(true);
-  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-
-
-  const emojis = [
-    "👍",
-    "❤️",
-    "😂",
-    "😮",
-    "😢",
-    "🎉",
-  ];
-
-
+  const {
+    unreadMessageCount,
+    setUnreadMessageCount,
+    isPinnedSheetOpen,
+    setIsPinnedSheetOpen,
+    showArchivedSection,
+    setShowArchivedSection,
+    showLeaveConfirm,
+    setShowLeaveConfirm,
+    showClearConfirm,
+    setShowClearConfirm,
+    mobileSidebarOpen,
+    setMobileSidebarOpen,
+    showMembersPanel,
+    setShowMembersPanel,
+    hoveredMsgId,
+    setHoveredMsgId,
+  } = useChatUI();
   // room staes hook
   const { allRooms, setAllRooms,
     selectedRoom, setSelectedRoom, showCreateRoom,
@@ -92,9 +73,10 @@ export default function ChatPage() {
     archivedRoomIds,
     setArchivedRoomIds,
     showRoomSettings,
-    setShowRoomSettings } = useRoomStore()
-
-
+    setShowRoomSettings,
+    activeRooms,
+    archivedRooms
+  } = useRoomStore();
 
   useEffect(() => {
     selectedRoomRef.current = selectedRoom;
@@ -106,31 +88,6 @@ export default function ChatPage() {
       setArchivedRoomIds(user.archivedRooms || []);
     }
   }, [user]);
-
-  useEffect(() => {
-    const handleGlobalClick = () => {
-      setContextMenu(null);
-      setShowRoomSettings(false);
-    };
-    window.addEventListener("click", handleGlobalClick);
-    return () => window.removeEventListener("click", handleGlobalClick);
-  }, []);
-
-  // ── Auth check ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const verifyAuth = async () => {
-      try {
-        const response = await checkAuth();
-        setUser(response.data.user);
-        socket.connect();
-        setLoading(false);
-      } catch (error) {
-        console.log(error);
-        router.push("/auth/login");
-      }
-    };
-    verifyAuth();
-  }, [router]);
 
   const {
     members,
@@ -213,6 +170,8 @@ export default function ChatPage() {
     handleClearChat,
     scrollToMessage
   } = messageHook;
+
+  useGlobalClickClose({ setContextMenu, setShowRoomSettings });
 
   const {
     searchQuery,
@@ -303,51 +262,10 @@ export default function ChatPage() {
 
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
-    return (
-      <div
-        className="h-screen flex flex-col items-center justify-center gap-4"
-        style={{ background: "var(--bg-app)" }}
-      >
-        <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center"
-          style={{ background: "var(--accent)" }}
-        >
-          <Zap size={22} className="text-white" fill="white" />
-        </div>
-        <svg
-          className="animate-spin w-8 h-8"
-          viewBox="0 0 32 32"
-          fill="none"
-        >
-          <circle
-            cx="16"
-            cy="16"
-            r="12"
-            stroke="var(--border)"
-            strokeWidth="3"
-          />
-          <path
-            d="M28 16C28 9.3 22.6 4 16 4"
-            stroke="var(--accent)"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-        </svg>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Connecting…
-        </p>
-      </div>
-    );
+    return <ChatLoadingScreen />;
   }
 
   /* ── RENDER ──────────────────────────────────────────────────────────────── */
-  const activeRooms = allRooms.filter(
-    (room: any) => !archivedRoomIds.includes(room._id)
-  );
-  const archivedRooms = allRooms.filter((room: any) =>
-    archivedRoomIds.includes(room._id)
-  );
-
   return (
     <main
       className="h-screen flex overflow-hidden"
@@ -551,7 +469,7 @@ export default function ChatPage() {
         contextMenu={contextMenu}
         setContextMenu={setContextMenu}
         setReplyingTo={setReplyingTo}
-        emojis={emojis}
+        emojis={REACTION_EMOJIS}
         handleReaction={handleReaction}
         starredMessageIds={starredMessageIds}
         handleStarMessage={handleStarMessage}

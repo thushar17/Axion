@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 export function useRoomStore() {
   const [allRooms, setAllRooms] = useState<any[]>([]);
@@ -15,6 +15,16 @@ export function useRoomStore() {
   const [showRoomSettings, setShowRoomSettings] = useState(false);
 
 
+  const activeRooms = useMemo(() => 
+    allRooms.filter((room: any) => !archivedRoomIds.includes(room._id)),
+    [allRooms, archivedRoomIds]
+  );
+  
+  const archivedRooms = useMemo(() => 
+    allRooms.filter((room: any) => archivedRoomIds.includes(room._id)),
+    [allRooms, archivedRoomIds]
+  );
+
   return {
     allRooms, setAllRooms,
     selectedRoom, setSelectedRoom,
@@ -24,6 +34,8 @@ export function useRoomStore() {
     setMutedRoomIds,
     archivedRoomIds,
     setArchivedRoomIds,
-    showRoomSettings, setShowRoomSettings
+    showRoomSettings, setShowRoomSettings,
+    activeRooms,
+    archivedRooms
   }
 }
