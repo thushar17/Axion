@@ -1,8 +1,8 @@
 "use client";
 
-import { checkAuth, starMessage, getStarredMessages, muteRoom, archiveRoom, clearChat } from "./services/auth.service";
-import { getRooms, createRoom, deleteRoom, renameRoom, leaveRoom, getMembers, addMember, removeMember, generateInvite } from "./services/room.service";
-import { editMessage, deleteMessage, pinMessage, toggleReaction, searchMessages, getPaginatedMessages } from "./services/message.service";
+import { checkAuth, muteRoom, archiveRoom, clearChat } from "./services/auth.service";
+import {createRoom, deleteRoom, renameRoom, leaveRoom, getMembers, addMember, removeMember, generateInvite } from "./services/room.service";
+import { searchMessages} from "./services/message.service";
 import ChatSidebar from "./components/ChatSidebar"
 import ChatHeader from "./components/ChatHeader";
 import ChatMessage from "./components/ChatMessage";
@@ -28,43 +28,23 @@ import { Modal, ConfirmModal } from "@/src/components/Modal";
 import {
   Hash,
   Lock,
-  Smile,
-  Plus,
-  Crown,
   X,
-  Send,
-  Star,
-  MoreHorizontal,
-  Reply,
-  Copy,
-  Pencil,
-  Trash2,
   Pin,
-  VolumeX,
-  Volume2,
-  Archive,
-  LogOut,
-  ChevronDown,
-  ChevronRight,
-  Users,
-  Link2,
   Zap,
   Check,
   CheckCheck,
-  Menu,
-  Search,
 } from "lucide-react";
-import { formatMessageTimestamp } from "./utils/formatTimestamp";
-import { groupedReaction } from "./utils/groupedReaction";
 import { useSocket } from "./hooks/useScoket";
 import { useMessage } from "./hooks/useMessage";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-
+import { useRoom } from "./hooks/useRoom";
+import { useRoomState } from "./hooks/useRoomState";
 
 
 
+
+
+
+  // hook for room states
 
 /* ─── Small sub-components ──────────────────────────────────────────────── */
 
@@ -122,16 +102,9 @@ export default function ChatPage() {
 
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
- 
-  const [roomName, setRoomName] = useState("");
-  const [roomType, setRoomType] = useState("public");
-  const [allRooms, setAllRooms] = useState<any[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<any>(null);
+
   const selectedRoomRef = useRef<any>(null);
 
-  useEffect(() => {
-    selectedRoomRef.current = selectedRoom;
-  }, [selectedRoom]);
 
   const [members, setMembers] = useState<any[]>([]);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -157,14 +130,13 @@ export default function ChatPage() {
   const [showArchivedSection, setShowArchivedSection] = useState(false);
 
   // UI state
-  const [showCreateRoom, setShowCreateRoom] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showMembersPanel, setShowMembersPanel] = useState(true);
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
 
 
   const emojis = [
@@ -180,6 +152,16 @@ export default function ChatPage() {
   const [isSeraching, setIsSearching] = useState(false)
 
 
+// room staes hook
+   const { allRooms,setAllRooms,
+            selectedRoom, setSelectedRoom,showCreateRoom,
+            setShowCreateRoom} = useRoomState()
+
+
+
+  useEffect(() => {
+    selectedRoomRef.current = selectedRoom;
+  }, [selectedRoom]);
   useEffect(() => {
     if (user) {
       setStarredMessageIds(user.starredMessages || []);
@@ -275,48 +257,31 @@ export default function ChatPage() {
   } = messageHook;
 
 
+  // use room hook
+  const {
+    fetchRooms,
+    roomName,
+    roomType,
+    handleRoomCreation,
+    setShowDeleteConfirm,
+    showDeleteConfirm,
+    handelRoomDelete,
+    setRoomName,
+    setRoomType
+  } = useRoom({
+    emitJoinRooms,
+    selectedRoom,
+    setSelectedRoom,
+    allRooms,
+    setAllRooms,
+    setShowCreateRoom,
+    
+  })
 
 
 
 
-  // ── Fetch rooms ───────────────────────────────────────────────────────────
-  const fetchRooms = async () => {
-    try {
-      const response = await getRooms();
-      if (response.status !== 200) {
-        toast.error("Failed to fetch rooms");
-        return;
-      }
-      setAllRooms(response.data.data);
-      const roomIds = response.data.data.map((r: any) => r._id);
-      emitJoinRooms(roomIds);
-      if (response.data.data.length > 0) {
-        setSelectedRoom(response.data.data[0]);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
-  // ── Create room ───────────────────────────────────────────────────────────
-  const handleRoomCreation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await createRoom(roomName, roomType);
-      if (response.status === 400) {
-        toast.error("Error while creating room");
-        return;
-      }
-      toast.success(response.data.message);
-      await fetchRooms();
-      setRoomName("");
-      setRoomType("public");
-      setShowCreateRoom(false);
-    } catch (error) {
-      console.log(error);
-      toast.error("Failed to create room");
-    }
-  };
 
   useEffect(() => {
     fetchRooms();
@@ -409,20 +374,7 @@ export default function ChatPage() {
   };
 
   // ── Delete room ───────────────────────────────────────────────────────────
-  const handelRoomDelete = async (roomId: string) => {
-    try {
-      const response = await deleteRoom(roomId);
-      if (!response.data.success) {
-        toast.error(response.data.message);
-        return;
-      }
-      toast.success("Room deleted");
-      setShowDeleteConfirm(false);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete room");
-    }
-  };
+
 
   // ── Edit message ──────────────────────────────────────────────────────────
   
