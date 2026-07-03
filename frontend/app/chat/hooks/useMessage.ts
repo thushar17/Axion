@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef, useEffect } from "react";
-import { editMessage, deleteMessage, getPaginatedMessages, pinMessage, toggleReaction, searchMessages } from "../services/message.service";
+import { editMessage, deleteMessage, getPaginatedMessages, pinMessage, toggleReaction } from "../services/message.service";
 import { getStarredMessages, starMessage, clearChat } from "../services/auth.service";
 import { toast } from "sonner";
 import { socket } from "@/src/lib/socket";
@@ -22,9 +22,6 @@ type Props = {
 export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitMessage, emitStopTyping, selectedRoom, allRooms, setSelectedRoom, setShowClearConfirm }: Props) {
   const [input, setInput] = useState("");
   const [replyingTo, setReplyingTo] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
 
   const [messages, setMessages] = useState<any[]>([]);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -87,28 +84,7 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
     }
   };
 
-  useEffect(() => {
-    if (!selectedRoom) return;
 
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        setIsSearching(true);
-        const response = await searchMessages(selectedRoom._id, searchQuery);
-        setSearchResults(response.data.messages);
-      } catch (error) {
-        console.log(error);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, selectedRoom]);
 
   const handleEditMessage = async () => {
     if (!input.trim()) return;
@@ -406,12 +382,6 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
     replyingTo,
     setReplyingTo,
     handleClearChat,
-    scrollToMessage,
-    searchQuery,
-    setSearchQuery,
-    searchResults,
-    setSearchResults,
-    isSearching,
-    setIsSearching
+    scrollToMessage
   };
 }

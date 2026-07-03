@@ -2,7 +2,8 @@
 
 import { checkAuth, clearChat } from "./services/auth.service";
 import { useMembers } from "./hooks/useMembers";
-import { searchMessages } from "./services/message.service";
+import { useSearch } from "./hooks/useSearch";
+import { useTypingIndicator } from "./hooks/useTypingIndicator";
 import ChatSidebar from "./components/ChatSidebar"
 import ChatHeader from "./components/ChatHeader";
 import ChatMessage from "./components/ChatMessage";
@@ -100,7 +101,7 @@ export default function ChatPage() {
 
   const selectedRoomRef = useRef<any>(null);
 
-  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
+
   const [unreadMessageCount, setUnreadMessageCount] = useState<{
     [roomId: string]: number;
   }>({});
@@ -257,14 +258,17 @@ export default function ChatPage() {
     replyingTo,
     setReplyingTo,
     handleClearChat,
-    scrollToMessage,
+    scrollToMessage
+  } = messageHook;
+
+  const {
     searchQuery,
     setSearchQuery,
     searchResults,
     setSearchResults,
     isSearching: isSeraching,
     setIsSearching
-  } = messageHook;
+  } = useSearch(selectedRoom);
 
 
 
@@ -331,15 +335,12 @@ export default function ChatPage() {
 
 
 
+  const { handleTyping } = useTypingIndicator(selectedRoom, emitTyping, emitStopTyping);
+
   // ── Typing ────────────────────────────────────────────────────────────────
   const handelInputChange = (e: any) => {
     setInput(e.target.value);
-    if (!selectedRoom) return;
-    emitTyping(selectedRoom);
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
-    typingTimeout.current = setTimeout(() => {
-      emitStopTyping(selectedRoom);
-    }, 1000);
+    handleTyping();
   };
 
 
