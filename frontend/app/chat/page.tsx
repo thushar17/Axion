@@ -1,8 +1,8 @@
 "use client";
 
 import { checkAuth, clearChat } from "./services/auth.service";
-import { getMembers, addMember, removeMember, generateInvite } from "./services/room.service";
-import { searchMessages} from "./services/message.service";
+import { useMembers } from "./hooks/useMembers";
+import { searchMessages } from "./services/message.service";
 import ChatSidebar from "./components/ChatSidebar"
 import ChatHeader from "./components/ChatHeader";
 import ChatMessage from "./components/ChatMessage";
@@ -39,7 +39,7 @@ import { useRoomState } from "./hooks/useRoomState";
 
 
 
-  // hook for room states
+// hook for room states
 
 /* ─── Small sub-components ──────────────────────────────────────────────── */
 
@@ -100,18 +100,10 @@ export default function ChatPage() {
 
   const selectedRoomRef = useRef<any>(null);
 
-
-  const [members, setMembers] = useState<any[]>([]);
-  const [showAddMember, setShowAddMember] = useState(false);
-  const [email, setEmail] = useState("");
-
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState<{
     [roomId: string]: number;
   }>({});
-  const [inviteLink, setInviteLink] = useState("");
-
-  const [editedContent, setEditedContent] = useState("");
   const [isPinnedSheetOpen, setIsPinnedSheetOpen] = useState(false);
 
   const [showArchivedSection, setShowArchivedSection] = useState(false);
@@ -136,16 +128,16 @@ export default function ChatPage() {
   ];
 
 
-// room staes hook
-   const { allRooms,setAllRooms,
-            selectedRoom, setSelectedRoom,showCreateRoom,
-            setShowCreateRoom,
-           mutedRoomIds,
-            setMutedRoomIds,
-          archivedRoomIds,
-            setArchivedRoomIds,
-          showRoomSettings,
-           setShowRoomSettings} = useRoomState()
+  // room staes hook
+  const { allRooms, setAllRooms,
+    selectedRoom, setSelectedRoom, showCreateRoom,
+    setShowCreateRoom,
+    mutedRoomIds,
+    setMutedRoomIds,
+    archivedRoomIds,
+    setArchivedRoomIds,
+    showRoomSettings,
+    setShowRoomSettings } = useRoomState()
 
 
 
@@ -185,7 +177,23 @@ export default function ChatPage() {
     verifyAuth();
   }, [router]);
 
-    // message hook
+  const {
+    members,
+    setMembers,
+    showAddMember,
+    setShowAddMember,
+    email,
+    setEmail,
+    inviteLink,
+    setInviteLink,
+    fetchMembers,
+    handleAddMember,
+    handelRemoveMember,
+    handelLinkGeneration,
+    isAdmin
+  } = useMembers({ selectedRoom, user });
+
+  // message hook
   let setMessagesFn: any;
 
   const { typingUsers,
@@ -259,6 +267,7 @@ export default function ChatPage() {
   } = messageHook;
 
 
+
   // use room hook
   const {
     fetchRooms,
@@ -272,12 +281,12 @@ export default function ChatPage() {
     setRoomType,
     handleArchiveRoom,
     handleMuteRoom,
-     setIsRenaming,
-        isRenaming,
-        renameInput,
-        setRenameInput,
-        handleRenameRoom,
-        handleLeaveRoom
+    setIsRenaming,
+    isRenaming,
+    renameInput,
+    setRenameInput,
+    handleRenameRoom,
+    handleLeaveRoom
   } = useRoom({
     emitJoinRooms,
     selectedRoom,
@@ -285,15 +294,15 @@ export default function ChatPage() {
     allRooms,
     setAllRooms,
     setShowCreateRoom,
-     mutedRoomIds,
-            setMutedRoomIds,
-            archivedRoomIds,
-            setArchivedRoomIds,
-            showRoomSettings, setShowRoomSettings,
-            setMessages,
-            setMembers,
-            setShowLeaveConfirm
-    
+    mutedRoomIds,
+    setMutedRoomIds,
+    archivedRoomIds,
+    setArchivedRoomIds,
+    showRoomSettings, setShowRoomSettings,
+    setMessages,
+    setMembers,
+    setShowLeaveConfirm
+
   })
 
 
@@ -305,15 +314,7 @@ export default function ChatPage() {
     fetchRooms();
   }, []);
 
-  // ── Fetch members ─────────────────────────────────────────────────────────
-  const fetchMembers = async () => {
-    try {
-      const response = await getMembers(selectedRoom._id);
-      setMembers(response.data.members);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+
 
   useEffect(() => {
     if (!selectedRoom) return;
@@ -328,22 +329,7 @@ export default function ChatPage() {
     loadMessages(selectedRoom._id);
   }, [selectedRoom]);
 
-  // ── Add member ────────────────────────────────────────────────────────────
-  const handleAddMember = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!selectedRoom) return;
-    try {
-      const response = await addMember(email, selectedRoom._id);
-      if (response.data.success) {
-        toast.success(response.data.message);
-        setEmail("");
-        setShowAddMember(false);
-      }
-      await fetchMembers();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to add member");
-    }
-  };
+
 
   // ── Typing ────────────────────────────────────────────────────────────────
   const handelInputChange = (e: any) => {
@@ -356,40 +342,7 @@ export default function ChatPage() {
     }, 1000);
   };
 
-  // ── Remove member ─────────────────────────────────────────────────────────
-  const handelRemoveMember = async (memberId: string) => {
-    try {
-      const response = await removeMember(memberId, selectedRoom._id);
-      if (response.data.success) {
-        toast.success("Member removed");
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error("Failed to remove member");
-    }
-  };
 
-  // ── isAdmin check ─────────────────────────────────────────────────────────
-  const isAdmin = members.some(
-    (member) =>
-      member.user._id === user?.id && member.role === "admin"
-  );
-
-  // ── Generate invite link ──────────────────────────────────────────────────
-  const handelLinkGeneration = async () => {
-    try {
-      const response = await generateInvite(selectedRoom._id);
-      if (!response.data.success) {
-        toast.error(response.data.message);
-        return;
-      }
-      setInviteLink(response.data.inviteLink);
-      toast.success("Invite link generated");
-    } catch (error) {
-      console.log(error);
-      toast.error("Failed to generate invite link");
-    }
-  };
   useEffect(() => {
     if (showStarredPanel) fetchStarredMessages();
   }, [showStarredPanel]);
