@@ -1,6 +1,6 @@
 import { useCallback, useState, useRef, useEffect } from "react";
-import { editMessage, deleteMessage, getPaginatedMessages, pinMessage, toggleReaction } from "../services/message.service";
-import { getStarredMessages, starMessage } from "../services/auth.service";
+import { editMessage, deleteMessage, getPaginatedMessages, pinMessage, toggleReaction, searchMessages } from "../services/message.service";
+import { getStarredMessages, starMessage, clearChat } from "../services/auth.service";
 import { toast } from "sonner";
 import { socket } from "@/src/lib/socket";
 import { getSenderId } from "@/test-helper";
@@ -13,11 +13,18 @@ type Props = {
   setUnreadMessageCount: React.Dispatch<React.SetStateAction<{ [roomId: string]: number }>>;
   emitMessage: (selectedRoom: any, input: string, replyingTo: any) => void;
   emitStopTyping: (selectedRoom: any) => void;
+  selectedRoom: any;
+  allRooms: any[];
+  setSelectedRoom: React.Dispatch<React.SetStateAction<any>>;
+  setShowClearConfirm: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitMessage, emitStopTyping }: Props) {
+export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitMessage, emitStopTyping, selectedRoom, allRooms, setSelectedRoom, setShowClearConfirm }: Props) {
   const [input, setInput] = useState("");
   const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const [messages, setMessages] = useState<any[]>([]);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -41,6 +48,67 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
+
+  const handleClearChat = async (roomId: string) => {
+    try {
+      const response = await clearChat(roomId);
+      if (response.data.success) {
+        setMessages([]);
+        toast.success("Chat cleared");
+        setShowClearConfirm(false);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to clear chat");
+    }
+  };
+
+  const scrollToMessage = (messageId: string, roomId?: string) => {
+    if (roomId && selectedRoomRef.current?._id !== roomId) {
+      const targetRoom = allRooms.find((r) => r._id === roomId);
+      if (targetRoom) {
+        setSelectedRoom(targetRoom);
+        setTimeout(() => {
+          const element = document.getElementById(`msg-${messageId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            element.classList.add("highlight-message");
+            setTimeout(() => element.classList.remove("highlight-message"), 2000);
+          }
+        }, 800);
+        return;
+      }
+    }
+    const element = document.getElementById(`msg-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.classList.add("highlight-message");
+      setTimeout(() => element.classList.remove("highlight-message"), 2000);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedRoom) return;
+
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const response = await searchMessages(selectedRoom._id, searchQuery);
+        setSearchResults(response.data.messages);
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedRoom]);
 
   const handleEditMessage = async () => {
     if (!input.trim()) return;
@@ -336,6 +404,14 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
     input,
     setInput,
     replyingTo,
-    setReplyingTo
+    setReplyingTo,
+    handleClearChat,
+    scrollToMessage,
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    setSearchResults,
+    isSearching,
+    setIsSearching
   };
 }

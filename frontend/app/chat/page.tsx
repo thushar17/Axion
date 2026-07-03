@@ -1,7 +1,7 @@
 "use client";
 
-import { checkAuth, muteRoom, archiveRoom, clearChat } from "./services/auth.service";
-import {createRoom, deleteRoom, renameRoom, leaveRoom, getMembers, addMember, removeMember, generateInvite } from "./services/room.service";
+import { checkAuth, clearChat } from "./services/auth.service";
+import { getMembers, addMember, removeMember, generateInvite } from "./services/room.service";
 import { searchMessages} from "./services/message.service";
 import ChatSidebar from "./components/ChatSidebar"
 import ChatHeader from "./components/ChatHeader";
@@ -10,20 +10,15 @@ import MessageInput from "./components/MessageInput";
 import MembersSidebar from "./components/MembersSidebar";
 import StarredPanel from "./components/StarredPanel";
 import ChatContextMenu from "./components/ChatContextMenu";
-import { getSenderId } from "./utils/getSenderId";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
   useState,
   useRef,
-  FormEvent,
-  useCallback,
 } from "react";
 import { socket } from "@/src/lib/socket";
 import { toast } from "sonner";
-import { Avatar } from "@/src/components/Avatar";
 import { PinnedMessagesSheet } from "@/src/components/PinnedMessagesSheet";
-import { StatusDot } from "@/src/components/StatusDot";
 import { Modal, ConfirmModal } from "@/src/components/Modal";
 import {
   Hash,
@@ -117,16 +112,8 @@ export default function ChatPage() {
   const [inviteLink, setInviteLink] = useState("");
 
   const [editedContent, setEditedContent] = useState("");
-
-
-
-  const [mutedRoomIds, setMutedRoomIds] = useState<string[]>([]);
-  const [archivedRoomIds, setArchivedRoomIds] = useState<string[]>([]);
-
-  const [showRoomSettings, setShowRoomSettings] = useState(false);
   const [isPinnedSheetOpen, setIsPinnedSheetOpen] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameInput, setRenameInput] = useState("");
+
   const [showArchivedSection, setShowArchivedSection] = useState(false);
 
   // UI state
@@ -147,15 +134,18 @@ export default function ChatPage() {
     "😢",
     "🎉",
   ];
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSeraching, setIsSearching] = useState(false)
 
 
 // room staes hook
    const { allRooms,setAllRooms,
             selectedRoom, setSelectedRoom,showCreateRoom,
-            setShowCreateRoom} = useRoomState()
+            setShowCreateRoom,
+           mutedRoomIds,
+            setMutedRoomIds,
+          archivedRoomIds,
+            setArchivedRoomIds,
+          showRoomSettings,
+           setShowRoomSettings} = useRoomState()
 
 
 
@@ -221,7 +211,11 @@ export default function ChatPage() {
     selectedRoomRef,
     setUnreadMessageCount,
     emitMessage,
-    emitStopTyping
+    emitStopTyping,
+    selectedRoom,
+    allRooms,
+    setSelectedRoom,
+    setShowClearConfirm
   });
   setMessagesFn = messageHook.setMessages;
 
@@ -253,7 +247,15 @@ export default function ChatPage() {
     input,
     setInput,
     replyingTo,
-    setReplyingTo
+    setReplyingTo,
+    handleClearChat,
+    scrollToMessage,
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    setSearchResults,
+    isSearching: isSeraching,
+    setIsSearching
   } = messageHook;
 
 
@@ -267,7 +269,15 @@ export default function ChatPage() {
     showDeleteConfirm,
     handelRoomDelete,
     setRoomName,
-    setRoomType
+    setRoomType,
+    handleArchiveRoom,
+    handleMuteRoom,
+     setIsRenaming,
+        isRenaming,
+        renameInput,
+        setRenameInput,
+        handleRenameRoom,
+        handleLeaveRoom
   } = useRoom({
     emitJoinRooms,
     selectedRoom,
@@ -275,6 +285,14 @@ export default function ChatPage() {
     allRooms,
     setAllRooms,
     setShowCreateRoom,
+     mutedRoomIds,
+            setMutedRoomIds,
+            archivedRoomIds,
+            setArchivedRoomIds,
+            showRoomSettings, setShowRoomSettings,
+            setMessages,
+            setMembers,
+            setShowLeaveConfirm
     
   })
 
@@ -372,173 +390,9 @@ export default function ChatPage() {
       toast.error("Failed to generate invite link");
     }
   };
-
-  // ── Delete room ───────────────────────────────────────────────────────────
-
-
-  // ── Edit message ──────────────────────────────────────────────────────────
-  
-    
-  // ── Delete message ────────────────────────────────────────────────────────
-
-
-  // ── Pin message ───────────────────────────────────────────────────────────
-
-
-  // ── Star message ──────────────────────────────────────────────────────────
-
-
-  // ── Fetch starred ─────────────────────────────────────────────────────────
-
-  // ── Mute room ─────────────────────────────────────────────────────────────
-  const handleMuteRoom = async (roomId: string) => {
-    try {
-      const response = await muteRoom(roomId);
-      if (response.data.success) {
-        setMutedRoomIds(response.data.mutedRooms);
-        toast.success(
-          mutedRoomIds.includes(roomId) ? "Room unmuted" : "Room muted"
-        );
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // ── Archive room ──────────────────────────────────────────────────────────
-  const handleArchiveRoom = async (roomId: string) => {
-    try {
-      const response = await archiveRoom(roomId);
-      if (response.data.success) {
-        setArchivedRoomIds(response.data.archivedRooms);
-        toast.success(
-          archivedRoomIds.includes(roomId) ? "Room unarchived" : "Room archived"
-        );
-        setShowRoomSettings(false);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // ── Clear chat ────────────────────────────────────────────────────────────
-  const handleClearChat = async (roomId: string) => {
-    try {
-      const response = await clearChat(roomId);
-      if (response.data.success) {
-        setMessages([]);
-        toast.success("Chat cleared");
-        setShowClearConfirm(false);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to clear chat");
-    }
-  };
-
-  // ── Rename room ───────────────────────────────────────────────────────────
-  const handleRenameRoom = async () => {
-    if (!renameInput.trim() || !selectedRoom) return;
-    try {
-      const response = await renameRoom(selectedRoom._id, renameInput);
-      if (response.data.success) {
-        setIsRenaming(false);
-        setRenameInput("");
-        toast.success("Room renamed");
-      } else {
-        toast.error(response.data.message || "Failed to rename room");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to rename room");
-    }
-  };
-
-  // ── Leave room ────────────────────────────────────────────────────────────
-  const handleLeaveRoom = async (roomId: string) => {
-    try {
-      const response = await leaveRoom(roomId);
-      if (response.data.success) {
-        setAllRooms((prev) => {
-          const updatedRooms = prev.filter((r) => r._id !== roomId);
-          if (selectedRoom?._id === roomId) {
-            setSelectedRoom(updatedRooms[0] || null);
-            setMessages([]);
-            setMembers([]);
-          }
-          return updatedRooms;
-        });
-        setShowLeaveConfirm(false);
-        toast.success("Left room");
-      }
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.response?.data?.message || "Failed to leave room");
-    }
-  };
-
-  // ── Scroll to message ─────────────────────────────────────────────────────
-  const scrollToMessage = (messageId: string, roomId?: string) => {
-    if (roomId && selectedRoom?._id !== roomId) {
-      const targetRoom = allRooms.find((r) => r._id === roomId);
-      if (targetRoom) {
-        setSelectedRoom(targetRoom);
-        setTimeout(() => {
-          const element = document.getElementById(`msg-${messageId}`);
-          if (element) {
-            element.scrollIntoView({ behavior: "smooth", block: "center" });
-            element.classList.add("highlight-message");
-            setTimeout(
-              () => element.classList.remove("highlight-message"),
-              2000
-            );
-          }
-        }, 800);
-        return;
-      }
-    }
-    const element = document.getElementById(`msg-${messageId}`);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-      element.classList.add("highlight-message");
-      setTimeout(
-        () => element.classList.remove("highlight-message"),
-        2000
-      );
-    }
-  };
   useEffect(() => {
     if (showStarredPanel) fetchStarredMessages();
   }, [showStarredPanel]);
-
-
-
-  // messages search
-
-  useEffect(() => {
-    if (!selectedRoom) return;
-
-    if (!searchQuery.trim()) {
-      setSearchResults([])
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        setIsSearching(true)
-        const response = await searchMessages(selectedRoom._id, searchQuery);
-        setSearchResults(response.data.messages)
-      } catch (error) {
-        console.log(error)
-      }
-      finally {
-        setIsSearching(false)
-      }
-    }, 300);
-
-    return () => clearTimeout(timer)
-
-  }, [searchQuery, selectedRoom])
 
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
