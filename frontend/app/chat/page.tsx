@@ -4,6 +4,7 @@ import { checkAuth, clearChat } from "./services/auth.service";
 import { useMembers } from "./hooks/useMembers";
 import { useSearch } from "./hooks/useSearch";
 import { useTypingIndicator } from "./hooks/useTypingIndicator";
+import { useMessageStore } from "./hooks/useMessageStore";
 import ChatSidebar from "./components/ChatSidebar"
 import ChatHeader from "./components/ChatHeader";
 import ChatMessage from "./components/ChatMessage";
@@ -11,6 +12,11 @@ import MessageInput from "./components/MessageInput";
 import MembersSidebar from "./components/MembersSidebar";
 import StarredPanel from "./components/StarredPanel";
 import ChatContextMenu from "./components/ChatContextMenu";
+import { DeliveryTick } from "./components/DeliveryTick";
+import { TypingIndicator } from "./components/TypingIndicator";
+import { CreateRoomModal } from "./components/CreateRoomModal";
+import { AddMemberModal } from "./components/AddMemberModal";
+import { DeleteRoomConfirmModal, LeaveRoomConfirmModal, ClearChatConfirmModal } from "./components/RoomConfirmModals";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -20,20 +26,15 @@ import {
 import { socket } from "@/src/lib/socket";
 import { toast } from "sonner";
 import { PinnedMessagesSheet } from "@/src/components/PinnedMessagesSheet";
-import { Modal, ConfirmModal } from "@/src/components/Modal";
 import {
-  Hash,
-  Lock,
   X,
   Pin,
-  Zap,
-  Check,
-  CheckCheck,
+  Zap
 } from "lucide-react";
 import { useSocket } from "./hooks/useScoket";
 import { useMessage } from "./hooks/useMessage";
 import { useRoom } from "./hooks/useRoom";
-import { useRoomState } from "./hooks/useRoomState";
+import { useRoomStore } from "./hooks/useRoomStore";
 
 
 
@@ -42,54 +43,7 @@ import { useRoomState } from "./hooks/useRoomState";
 
 // hook for room states
 
-/* ─── Small sub-components ──────────────────────────────────────────────── */
 
-function TypingIndicator({ users }: { users: string[] }) {
-  if (!users.length) return null;
-  return (
-    <div className="flex items-center gap-2 px-4 py-2">
-      <div className="flex gap-1 items-end">
-        <span className="typing-dot" />
-        <span className="typing-dot" />
-        <span className="typing-dot" />
-      </div>
-      <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-        {users.length === 1
-          ? `${users[0]} is typing…`
-          : `${users.join(", ")} are typing…`}
-      </span>
-    </div>
-  );
-}
-
-function DeliveryTick({ status, isMe }: { status: string; isMe: boolean }) {
-  if (!isMe) return null;
-  if (status === "seen") {
-    return (
-      <CheckCheck
-        size={13}
-        className="shrink-0"
-        style={{ color: "var(--accent-hover)" }}
-      />
-    );
-  }
-  if (status === "delivered") {
-    return (
-      <CheckCheck
-        size={13}
-        className="shrink-0"
-        style={{ color: "var(--text-muted)" }}
-      />
-    );
-  }
-  return (
-    <Check
-      size={13}
-      className="shrink-0"
-      style={{ color: "var(--text-muted)" }}
-    />
-  );
-}
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 
@@ -138,7 +92,7 @@ export default function ChatPage() {
     archivedRoomIds,
     setArchivedRoomIds,
     showRoomSettings,
-    setShowRoomSettings } = useRoomState()
+    setShowRoomSettings } = useRoomStore()
 
 
 
@@ -194,8 +148,8 @@ export default function ChatPage() {
     isAdmin
   } = useMembers({ selectedRoom, user });
 
-  // message hook
-  let setMessagesFn: any;
+  // message state hook
+  const { messages, setMessages } = useMessageStore();
 
   const { typingUsers,
     emitMessage,
@@ -206,7 +160,7 @@ export default function ChatPage() {
   } = useSocket(
     {
       selectedRoomRef,
-      onActiveRoomCleared: () => setMessagesFn?.([]),
+      onActiveRoomCleared: () => setMessages([]),
       user,
       setAllRooms,
       setSelectedRoom,
@@ -224,13 +178,12 @@ export default function ChatPage() {
     selectedRoom,
     allRooms,
     setSelectedRoom,
-    setShowClearConfirm
+    setShowClearConfirm,
+    messages,
+    setMessages
   });
-  setMessagesFn = messageHook.setMessages;
 
   const {
-    messages,
-    setMessages,
     editingMessageId,
     setEditingMessageId,
     handleEditMessage,
@@ -613,166 +566,45 @@ export default function ChatPage() {
 
       {/* ══ MODALS ════════════════════════════════════════════════════════ */}
 
-      {/* Create Room */}
-      <Modal
+      <CreateRoomModal
         open={showCreateRoom}
         onClose={() => setShowCreateRoom(false)}
-        title="Create a channel"
-      >
-        <form onSubmit={handleRoomCreation} className="space-y-4">
-          <div>
-            <label
-              className="block text-sm font-medium mb-1.5"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Channel name
-            </label>
-            <input
-              type="text"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              className="axion-input"
-              placeholder="e.g. general"
-              required
-            />
-          </div>
-          <div>
-            <label
-              className="block text-sm font-medium mb-1.5"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Type
-            </label>
-            <div className="flex gap-2">
-              {(["public", "private"] as const).map((t) => (
-                <button
-                  type="button"
-                  key={t}
-                  onClick={() => setRoomType(t)}
-                  className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all"
-                  style={{
-                    background:
-                      roomType === t
-                        ? "var(--accent-muted)"
-                        : "var(--bg-surface-hover)",
-                    borderColor:
-                      roomType === t ? "var(--accent)" : "var(--border)",
-                    color:
-                      roomType === t
-                        ? "var(--accent-hover)"
-                        : "var(--text-secondary)",
-                  }}
-                >
-                  {t === "public" ? (
-                    <Hash size={13} />
-                  ) : (
-                    <Lock size={13} />
-                  )}
-                  <span className="capitalize">{t}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowCreateRoom(false)}
-              className="flex-1 py-2.5 rounded-xl text-sm transition-all hover:bg-[var(--bg-surface-hover)]"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all btn-glow"
-              style={{ background: "var(--accent)" }}
-            >
-              Create channel
-            </button>
-          </div>
-        </form>
-      </Modal>
+        roomName={roomName}
+        setRoomName={setRoomName}
+        roomType={roomType}
+        setRoomType={setRoomType}
+        handleRoomCreation={handleRoomCreation}
+      />
 
-      {/* Add Member */}
-      <Modal
+      <AddMemberModal
         open={showAddMember}
         onClose={() => {
           setShowAddMember(false);
           setEmail("");
         }}
-        title="Add member"
-      >
-        <form onSubmit={handleAddMember} className="space-y-4">
-          <div>
-            <label
-              className="block text-sm font-medium mb-1.5"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Email address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="axion-input"
-              placeholder="teammate@company.com"
-              required
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowAddMember(false);
-                setEmail("");
-              }}
-              className="flex-1 py-2.5 rounded-xl text-sm transition-all hover:bg-[var(--bg-surface-hover)]"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all btn-glow"
-              style={{ background: "var(--accent)" }}
-            >
-              Add member
-            </button>
-          </div>
-        </form>
-      </Modal>
+        email={email}
+        setEmail={setEmail}
+        handleAddMember={handleAddMember}
+      />
 
-      {/* Delete Room Confirm */}
-      <ConfirmModal
+      <DeleteRoomConfirmModal
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={() => handelRoomDelete(selectedRoom?._id)}
-        title="Delete room"
-        description={`Are you sure you want to delete "${selectedRoom?.name}"? This action cannot be undone and all messages will be lost.`}
-        confirmLabel="Delete room"
-        danger
+        roomName={selectedRoom?.name}
       />
 
-      {/* Leave Room Confirm */}
-      <ConfirmModal
+      <LeaveRoomConfirmModal
         open={showLeaveConfirm}
         onClose={() => setShowLeaveConfirm(false)}
         onConfirm={() => handleLeaveRoom(selectedRoom?._id)}
-        title="Leave room"
-        description={`Are you sure you want to leave "${selectedRoom?.name}"?`}
-        confirmLabel="Leave room"
-        danger
+        roomName={selectedRoom?.name}
       />
 
-      {/* Clear Chat Confirm */}
-      <ConfirmModal
+      <ClearChatConfirmModal
         open={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}
         onConfirm={() => handleClearChat(selectedRoom?._id)}
-        title="Clear chat history"
-        description="This will delete all messages in this room. This cannot be undone."
-        confirmLabel="Clear chat"
-        danger
       />
 
       {/* Pinned Messages Sheet */}

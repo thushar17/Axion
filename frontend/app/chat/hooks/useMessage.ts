@@ -17,13 +17,14 @@ type Props = {
   allRooms: any[];
   setSelectedRoom: React.Dispatch<React.SetStateAction<any>>;
   setShowClearConfirm: React.Dispatch<React.SetStateAction<boolean>>;
+  messages: any[];
+  setMessages: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
-export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitMessage, emitStopTyping, selectedRoom, allRooms, setSelectedRoom, setShowClearConfirm }: Props) {
+export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitMessage, emitStopTyping, selectedRoom, allRooms, setSelectedRoom, setShowClearConfirm, messages, setMessages }: Props) {
   const [input, setInput] = useState("");
   const [replyingTo, setReplyingTo] = useState<any>(null);
 
-  const [messages, setMessages] = useState<any[]>([]);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
