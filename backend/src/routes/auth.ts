@@ -5,6 +5,8 @@ import { MessageModel } from '../models/messages.js'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { authMiddleware } from '../middleware/authMiddleware.js'
+import { uploadAvatar } from '../config/cloudinary.js'
+import { getIO } from '../socket/index.js'
 const AuthRouter = Router()
 
 AuthRouter.post('/register', async (req: Request, res: Response) => {
@@ -293,6 +295,49 @@ AuthRouter.post("/clear-chat", authMiddleware, async (req: Request, res: Respons
             success: true,
             message: "Chat history cleared successfully",
             clearedRooms: user.clearedRooms
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
+AuthRouter.put("/update-profile", authMiddleware, uploadAvatar.single('avatar'), async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+        
+        const userId = req.user.id;
+        const { username } = req.body;
+        
+        const updateData: any = {};
+        if (username) updateData.username = username;
+        if (req.file) updateData.avatar = req.file.path; // multer-storage-cloudinary provides the URL in req.file.path
+        
+        const updatedUser = await UserModel.findByIdAndUpdate(userId, updateData, { new: true });
+        
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const userData = {
+            id: updatedUser._id,
+            email: updatedUser.email,
+            username: updatedUser.username,
+            avatar: updatedUser.avatar,
+            starredMessages: updatedUser.starredMessages || [],
+            mutedRooms: updatedUser.mutedRooms || [],
+            archivedRooms: updatedUser.archivedRooms || [],
+            clearedRooms: updatedUser.clearedRooms || []
+        };
+
+        const io = getIO();
+        io.emit("user_updated", userData);
+
+        return res.status(200).json({
+            success: true,
+            user: userData
         });
     } catch (error) {
         console.error(error);

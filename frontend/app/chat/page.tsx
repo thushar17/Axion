@@ -19,13 +19,16 @@ import { CreateRoomModal } from "./components/CreateRoomModal";
 import { AddMemberModal } from "./components/AddMemberModal";
 import { DeleteRoomConfirmModal, LeaveRoomConfirmModal, ClearChatConfirmModal } from "./components/RoomConfirmModals";
 import { ChatLoadingScreen } from "./components/ChatLoadingScreen";
+import { ProfileModal } from "./components/ProfileModal";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./hooks/useAuth";
+import { socket } from "@/src/lib/socket";
 import { useGlobalClickClose } from "./hooks/useGlobalClickClose";
 import { REACTION_EMOJIS } from "./constants/reactions";
 import {
   useEffect,
   useRef,
+  useState
 } from "react";
 import { PinnedMessagesSheet } from "@/src/components/PinnedMessagesSheet";
 import {
@@ -41,7 +44,8 @@ import { useRoomStore } from "./hooks/useRoomStore";
 export default function ChatPage() {
   const router = useRouter();
 
-  const { user, loading } = useAuth();
+  const { user, setUser, loading } = useAuth();
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const selectedRoomRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -230,7 +234,35 @@ export default function ChatPage() {
     fetchRooms();
   }, []);
 
+  useEffect(() => {
+    socket.on("user_updated", (updatedUser) => {
+      if (user && updatedUser.id === user.id) {
+        setUser(updatedUser);
+      }
+      setMessages((prev: any[]) => 
+        prev.map((msg: any) => {
+          const senderId = msg.sender?._id || msg.sender?.id;
+          if (senderId === updatedUser.id) {
+            return { ...msg, sender: { ...msg.sender, username: updatedUser.username, avatar: updatedUser.avatar } };
+          }
+          return msg;
+        })
+      );
+      setMembers((prev: any[]) => 
+        prev.map((member: any) => {
+          const memberId = member.user?._id || member.user?.id;
+          if (memberId === updatedUser.id) {
+            return { ...member, user: { ...member.user, username: updatedUser.username, avatar: updatedUser.avatar } };
+          }
+          return member;
+        })
+      );
+    });
 
+    return () => {
+      socket.off("user_updated");
+    };
+  }, [user, setMessages, setMembers, setUser]);
 
   useEffect(() => {
     if (!selectedRoom) return;
@@ -293,6 +325,7 @@ export default function ChatPage() {
         showArchivedSection={showArchivedSection}
         setShowArchivedSection={setShowArchivedSection}
         user={user}
+        setShowProfileModal={setShowProfileModal}
       />
 
       {/* ══ CENTER AREA ═══════════════════════════════════════════════════ */}
@@ -523,6 +556,13 @@ export default function ChatPage() {
         open={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}
         onConfirm={() => handleClearChat(selectedRoom?._id)}
+      />
+
+      <ProfileModal
+        open={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        setUser={setUser}
       />
 
       {/* Pinned Messages Sheet */}

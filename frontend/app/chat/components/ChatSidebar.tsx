@@ -1,7 +1,7 @@
 import React from "react";
 import { Avatar } from "@/src/components/Avatar";
 import { StatusDot } from "@/src/components/StatusDot";
-import { Zap, Plus, Lock, Hash, VolumeX, ChevronDown, ChevronRight } from "lucide-react";
+import { Zap, Plus, Lock, Hash, VolumeX, ChevronDown, ChevronRight, Settings } from "lucide-react";
 
 type Props = {
   mobileSidebarOpen: boolean;
@@ -15,6 +15,7 @@ type Props = {
   showArchivedSection: boolean;
   setShowArchivedSection: React.Dispatch<React.SetStateAction<boolean>>;
   user: any;
+  setShowProfileModal: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 export default function ChatSidebar({
@@ -28,7 +29,8 @@ export default function ChatSidebar({
   archivedRooms,
   showArchivedSection,
   setShowArchivedSection,
-  user
+  user,
+  setShowProfileModal
 }: Props) {
   return (
       <aside
@@ -247,8 +249,9 @@ export default function ChatSidebar({
         </div>
 
         {/* User panel at bottom */}
-        <div
-          className="px-3 py-3 border-t flex items-center gap-2.5 shrink-0"
+        <button
+          onClick={() => setShowProfileModal(true)}
+          className="w-full px-3 py-3 border-t flex items-center gap-2.5 shrink-0 text-left hover:bg-[var(--bg-surface-hover)] transition-colors group cursor-pointer"
           style={{ borderColor: "var(--border-subtle)" }}
         >
           <Avatar
@@ -270,8 +273,11 @@ export default function ChatSidebar({
               {user?.email}
             </p>
           </div>
-          <StatusDot status="online" pulse size="sm" />
-        </div>
+          <div className="flex items-center gap-2">
+            <Settings size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--text-muted)" }} />
+            <StatusDot status="online" pulse size="sm" />
+          </div>
+        </button>
       </aside>
   );
 }

@@ -25,3 +25,12 @@ export async function archiveRoom(roomId: string) {
 export async function clearChat(roomId: string) {
   return axios.post(`${API_URL}/auth/clear-chat`, { roomId }, { withCredentials: true });
 }
+
+export async function updateProfile(formData: FormData) {
+  return axios.put(`${API_URL}/auth/update-profile`, formData, {
+    withCredentials: true,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+}
