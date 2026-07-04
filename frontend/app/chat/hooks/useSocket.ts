@@ -1,6 +1,5 @@
 import { socket } from "@/src/lib/socket";
 import React, { useEffect, useState } from "react";
-import { getSenderId } from "@/test-helper";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 type Props = {
@@ -156,6 +155,19 @@ export function useSocket({
     });
 
 
+    // room last message
+
+    socket.on("last-message",(data)=>{
+      setAllRooms((prev)=>
+        prev.map((room)=>
+          room._id === data.roomId ?
+           {...room, lastMessage: data.lastMessage, lastMessageAt: data.lastMessageAt}
+           : room
+        )
+      )
+    })
+
+
 
     return () => {
       socket.off("connect");
@@ -166,6 +178,7 @@ export function useSocket({
       socket.off("member-removed");
       socket.off("room-deleted");
       socket.off("room-renamed");
+      socket.off("last-message");
     };
   }, [user, router]);
 

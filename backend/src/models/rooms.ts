@@ -38,7 +38,27 @@ const RoomSchema = new Schema({
     },
     inviteLinkExpiresAt:{
         type: Date
+    },
+    
+    lastMessage:{
+        content:{
+            type: String,
+            default: ""
+        },
+        sender:{
+            type:Schema.Types.ObjectId,
+            ref:"User",
+        },
+        type:{
+            type:String,
+            enum:["text","image","file","video","audio"],
+            default: 'text'
+        }
+    },
+    lastMessageAt:{
+        type: Date,
     }
+
 },
 
 {

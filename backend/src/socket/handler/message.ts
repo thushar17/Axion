@@ -37,6 +37,17 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
       content: data.content,
       replyTo: data.replyTo || null
     });
+
+    // updating room for last message
+    const updatedRoom =  await RoomModel.findByIdAndUpdate(Dbmessage.roomId,{
+      lastMessage:{
+        content: Dbmessage.content,
+        sender: userId,
+        type: "text"
+      },
+      lastMessageAt:Dbmessage.createdAt
+    },
+  {  new: true})
     callback({
       success: true,
       messageId: Dbmessage._id
@@ -55,6 +66,11 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
     }
       ])
     io.to(data.roomId).emit("new-message", message);
+    io.to(data.roomId).emit("last-message",{
+      roomId: data.roomId,
+      lastMessage: updatedRoom?.lastMessage,
+      lastMessageAt: updatedRoom?.lastMessageAt 
+    })
   });
   socket.on("message-delivered", async ({ messageId }) => {
     console.log("meesageID", messageId)

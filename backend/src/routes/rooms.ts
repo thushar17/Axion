@@ -9,11 +9,9 @@ import { getIO } from '../socket/index.js';
 const RoomRouter = Router()
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
 import { MessageModel } from '../models/messages.js';
-import { check, success } from 'zod';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
-    console.log("lhello how are you", name, type)
     const user = req.user;
      if (!user) {
     return res.status(401).json({
@@ -59,10 +57,9 @@ RoomRouter.get('/getRooms', authMiddleware, async (req: Request, res: Response) 
     if (!user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
     const rooms = await RoomModel.find({
       "members.user": user.id
-    });
+    }).sort({lastMessageAt: -1});
     
     res.json({
       success: true,

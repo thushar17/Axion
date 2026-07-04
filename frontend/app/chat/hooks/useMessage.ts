@@ -3,7 +3,7 @@ import { editMessage, deleteMessage, getPaginatedMessages, pinMessage, toggleRea
 import { getStarredMessages, starMessage, clearChat } from "../services/auth.service";
 import { toast } from "sonner";
 import { socket } from "@/src/lib/socket";
-import { getSenderId } from "@/test-helper";
+import { getSenderId } from "../utils/getSenderId";
 
 
 
@@ -137,6 +137,7 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
   // load message 
 
   const loadMessages = async (roomId: string) => {
+    console.log("hello",allRooms)
     try {
       const response = await getPaginatedMessages(roomId);
 

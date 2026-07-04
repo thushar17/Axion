@@ -21,10 +21,13 @@ export function useRoomStore() {
   );
   
   const archivedRooms = useMemo(() => 
-    allRooms.filter((room: any) => archivedRoomIds.includes(room._id)),
+    allRooms.filter((room: any) => archivedRoomIds.includes(room._id))
+    .sort((a,b)=>new Date(b.lastMessageAt ||0).getTime() - new Date(a.lastMessageAt||0).getTime()   )
+  ,
     [allRooms, archivedRoomIds]
   );
 
+  
   return {
     allRooms, setAllRooms,
     selectedRoom, setSelectedRoom,

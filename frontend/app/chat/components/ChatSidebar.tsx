@@ -133,6 +133,11 @@ export default function ChatSidebar({
                 {/* Name */}
                 <span className="flex-1 text-sm truncate font-medium">
                   {room.name}
+                  {room.lastMessage && (
+                    <span className="text-xs truncate block font-normal" style={{ color: "var(--text-muted)" }}>
+                      {room.lastMessage.content || room.lastMessage.type}
+                    </span>
+                  )}
                 </span>
                 {/* Mute icon */}
                 {isMuted && (
@@ -201,6 +206,11 @@ export default function ChatSidebar({
                       )}
                       <span className="flex-1 text-sm truncate font-medium">
                         {room.name}
+                        {room.lastMessage && (
+                          <span className="text-xs truncate block font-normal" style={{ color: "var(--text-muted)" }}>
+                            {room.lastMessage.content || room.lastMessage.type}
+                          </span>
+                        )}
                       </span>
                       {!!unread && (
                         <span
