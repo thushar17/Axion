@@ -1,7 +1,7 @@
 import { response, Router } from 'express'
 import type { Request, Response } from 'express';
 import { RoomModel } from '../models/rooms.js';
-import { authMiddleware } from '../middleware/authMIddleware.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 import { UserModel } from '../models/user.js';
 import { checkForUserRole } from '../helpers/roomPermission.js';
 import { Types } from 'mongoose';

@@ -4,7 +4,7 @@ import { UserModel } from '../models/user.js'
 import { MessageModel } from '../models/messages.js'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { authMiddleware } from '../middleware/authMIddleware.js'
+import { authMiddleware } from '../middleware/authMiddleware.js'
 const AuthRouter = Router()
 
 AuthRouter.post('/register', async (req: Request, res: Response) => {
