@@ -8,10 +8,10 @@ type Props = {
   members: any[];
   isAdmin: boolean;
   user: any;
-  handelRemoveMember: (memberId: string) => void;
+  handleRemoveMember: (memberId: string) => void;
   setShowAddMember: React.Dispatch<React.SetStateAction<boolean>>;
   selectedRoom: any;
-  handelLinkGeneration: () => void;
+  handleLinkGeneration: () => void;
   inviteLink: string;
   setShowDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;
 };
@@ -20,10 +20,10 @@ export default function MembersSidebar({
   members,
   isAdmin,
   user,
-  handelRemoveMember,
+  handleRemoveMember,
   setShowAddMember,
   selectedRoom,
-  handelLinkGeneration,
+  handleLinkGeneration,
   inviteLink,
   setShowDeleteConfirm
 }: Props) {
@@ -106,7 +106,7 @@ export default function MembersSidebar({
               {/* Remove (admin, not self) */}
               {isAdmin && member.user._id !== user?.id && (
                 <button
-                  onClick={() => handelRemoveMember(member.user._id)}
+                  onClick={() => handleRemoveMember(member.user._id)}
                   className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-[var(--error-bg)] transition-all"
                   style={{ color: "var(--error)" }}
                   title="Remove member"
@@ -146,7 +146,7 @@ export default function MembersSidebar({
 
           {/* Invite link button */}
           <button
-            onClick={handelLinkGeneration}
+            onClick={handleLinkGeneration}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:bg-[var(--bg-surface-hover)]"
             style={{ color: "var(--text-secondary)" }}
           >

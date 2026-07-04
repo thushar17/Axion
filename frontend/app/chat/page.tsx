@@ -31,7 +31,7 @@ import { PinnedMessagesSheet } from "@/src/components/PinnedMessagesSheet";
 import {
   Pin
 } from "lucide-react";
-import { useSocket } from "./hooks/useScoket";
+import { useSocket } from "./hooks/useSocket";
 import { useMessage } from "./hooks/useMessage";
 import { useRoom } from "./hooks/useRoom";
 import { useRoomStore } from "./hooks/useRoomStore";
@@ -64,7 +64,7 @@ export default function ChatPage() {
     hoveredMsgId,
     setHoveredMsgId,
   } = useChatUI();
-  // room staes hook
+  // room states hook
   const { allRooms, setAllRooms,
     selectedRoom, setSelectedRoom, showCreateRoom,
     setShowCreateRoom,
@@ -100,8 +100,8 @@ export default function ChatPage() {
     setInviteLink,
     fetchMembers,
     handleAddMember,
-    handelRemoveMember,
-    handelLinkGeneration,
+    handleRemoveMember,
+    handleLinkGeneration,
     isAdmin
   } = useMembers({ selectedRoom, user });
 
@@ -178,7 +178,7 @@ export default function ChatPage() {
     setSearchQuery,
     searchResults,
     setSearchResults,
-    isSearching: isSeraching,
+    isSearching: isSearching,
     setIsSearching
   } = useSearch(selectedRoom);
 
@@ -192,7 +192,7 @@ export default function ChatPage() {
     handleRoomCreation,
     setShowDeleteConfirm,
     showDeleteConfirm,
-    handelRoomDelete,
+    handleRoomDelete,
     setRoomName,
     setRoomType,
     handleArchiveRoom,
@@ -250,7 +250,7 @@ export default function ChatPage() {
   const { handleTyping } = useTypingIndicator(selectedRoom, emitTyping, emitStopTyping);
 
   // ── Typing ────────────────────────────────────────────────────────────────
-  const handelInputChange = (e: any) => {
+  const handleInputChange = (e: any) => {
     setInput(e.target.value);
     handleTyping();
   };
@@ -432,7 +432,7 @@ export default function ChatPage() {
         <MessageInput
           sendMessage={sendMessage}
           inputRef={inputRef}
-          handelInputChange={handelInputChange}
+          handleInputChange={handleInputChange}
           selectedRoom={selectedRoom}
           input={input}
         />
@@ -445,10 +445,10 @@ export default function ChatPage() {
           members={members}
           isAdmin={isAdmin}
           user={user}
-          handelRemoveMember={handelRemoveMember}
+          handleRemoveMember={handleRemoveMember}
           setShowAddMember={setShowAddMember}
           selectedRoom={selectedRoom}
-          handelLinkGeneration={handelLinkGeneration}
+          handleLinkGeneration={handleLinkGeneration}
           inviteLink={inviteLink}
           setShowDeleteConfirm={setShowDeleteConfirm}
         />
@@ -508,7 +508,7 @@ export default function ChatPage() {
       <DeleteRoomConfirmModal
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={() => handelRoomDelete(selectedRoom?._id)}
+        onConfirm={() => handleRoomDelete(selectedRoom?._id)}
         roomName={selectedRoom?.name}
       />
 

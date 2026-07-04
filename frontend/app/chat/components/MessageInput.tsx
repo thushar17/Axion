@@ -4,7 +4,7 @@ import { Send } from "lucide-react";
 type Props = {
   sendMessage: (e: React.FormEvent) => void;
   inputRef: React.RefObject<HTMLInputElement>;
-  handelInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   selectedRoom: any;
   input: string;
 };
@@ -12,7 +12,7 @@ type Props = {
 export default function MessageInput({
   sendMessage,
   inputRef,
-  handelInputChange,
+  handleInputChange,
   selectedRoom,
   input
 }: Props) {
@@ -36,7 +36,7 @@ export default function MessageInput({
           ref={inputRef}
           type="text"
           value={input}
-          onChange={handelInputChange}
+          onChange={handleInputChange}
           placeholder={
             selectedRoom
               ? `Message #${selectedRoom.name}`

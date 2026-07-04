@@ -42,7 +42,7 @@ export function useMembers({ selectedRoom, user }: Props) {
     };
 
     // ── Remove member ─────────────────────────────────────────────────────────
-    const handelRemoveMember = async (memberId: string) => {
+    const handleRemoveMember = async (memberId: string) => {
         if (!selectedRoom) return;
         try {
             const response = await removeMember(memberId, selectedRoom._id);
@@ -56,7 +56,7 @@ export function useMembers({ selectedRoom, user }: Props) {
     };
 
     // ── Generate invite link ──────────────────────────────────────────────────
-    const handelLinkGeneration = async () => {
+    const handleLinkGeneration = async () => {
         if (!selectedRoom) return;
         try {
             const response = await generateInvite(selectedRoom._id);
@@ -88,8 +88,8 @@ export function useMembers({ selectedRoom, user }: Props) {
         setInviteLink,
         fetchMembers,
         handleAddMember,
-        handelRemoveMember,
-        handelLinkGeneration,
+        handleRemoveMember,
+        handleLinkGeneration,
         isAdmin
     };
 }

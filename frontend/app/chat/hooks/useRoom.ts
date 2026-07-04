@@ -88,7 +88,7 @@ export function useRoom({ emitJoinRooms,
     };
 
     // delete room
-    const handelRoomDelete = async (roomId: string) => {
+    const handleRoomDelete = async (roomId: string) => {
         try {
             const response = await deleteRoom(roomId);
             if (!response.data.success) {
@@ -189,7 +189,7 @@ export function useRoom({ emitJoinRooms,
         handleRoomCreation,
         setShowDeleteConfirm,
         showDeleteConfirm,
-        handelRoomDelete,
+        handleRoomDelete,
         setRoomName,
         setRoomType,
         handleMuteRoom,
