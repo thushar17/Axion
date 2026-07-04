@@ -40,6 +40,7 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
   const [showStarredPanel, setShowStarredPanel] = useState(false);
   const [starredMessages, setStarredMessages] = useState<any[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
 
 
