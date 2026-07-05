@@ -13,10 +13,18 @@ dotenv.config();
 const app = express()
 const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000'
 
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+
 app.use(cors({
-    origin: clientUrl,
-    credentials: true
-}))
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, 
+}));
 app.use(express.json())
 app.use(cookieParser())
 await connectDB()
