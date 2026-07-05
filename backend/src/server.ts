@@ -12,7 +12,6 @@ import { RoomModel } from './models/rooms.js';
 dotenv.config();
 const app = express()
 const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000'
-
 const allowedOrigins = [
   'http://localhost:3000',
   'https://axion-alpha-blush.vercel.app',
@@ -27,7 +26,7 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true, 
+  credentials: true,
 }));
 app.use(express.json())
 app.use(cookieParser())
@@ -40,10 +39,10 @@ initializedSocket(server)
 app.use("/auth", AuthRouter)
 app.use("/room", RoomRouter)
 app.get('/', (req, res) => {
-    res.json({ message: 'Sucess' })
+  res.json({ message: 'Sucess' })
 })
 
 
 server.listen(PORT, () => {
-    console.log(`app listening at port ${PORT}`)
+  console.log(`app listening at port ${PORT}`)
 })

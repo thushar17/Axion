@@ -10,12 +10,12 @@ let io: Server;
 export const initializedSocket = (server: http.Server) => {
   console.log("Socket server initialized");
 
-   const allowedOrigins = [
+  const allowedOrigins = [
     'http://localhost:3000',
     'https://axion-alpha-blush.vercel.app',
   ];
 
-   io = new Server(server, {
+  io = new Server(server, {
     cors: {
       origin: function (origin, callback) {
         if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
@@ -49,7 +49,7 @@ export const initializedSocket = (server: http.Server) => {
     });
   });
 
- 
+
   return io;
 };
 
