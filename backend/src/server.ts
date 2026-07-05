@@ -13,7 +13,10 @@ dotenv.config();
 const app = express()
 const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000'
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://axion-alpha-blush.vercel.app'
+];
 
 app.use(cors({
   origin: function (origin, callback) {
