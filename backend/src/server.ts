@@ -21,7 +21,7 @@ app.use(express.json())
 app.use(cookieParser())
 await connectDB()
 await RoomModel.syncIndexes()
-const PORT = 8000
+const PORT = process.env.PORT || 8000
 
 const server = http.createServer(app)
 initializedSocket(server)
