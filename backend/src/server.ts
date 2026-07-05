@@ -15,12 +15,13 @@ const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000'
 
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://axion-alpha-blush.vercel.app'
+  'https://axion-alpha-blush.vercel.app',
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow local development, specific domains, and all Vercel preview deployments
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
