@@ -2,7 +2,10 @@ import type { Request, Response, NextFunction } from "express"
 import jwt, { type JwtPayload } from 'jsonwebtoken'
 import type { JwtUserPayload } from "../types/index.js"
 export const authMiddleware = async(req:Request , res:Response , next:NextFunction)=>{
-    const token = req.cookies.token
+    let token = req.cookies.token;
+    // if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    //     token = req.headers.authorization.split(' ')[1];
+    // }
 
     if(!token){
         return  res.status(401).json({ error: 'Unauthorized' })

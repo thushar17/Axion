@@ -29,3 +29,14 @@ export async function getPaginatedMessages(roomId: string, cursor?: string | nul
   }
   return axios.get(`${API_URL}/room/messages/paginated`, { params, withCredentials: true });
 }
+
+export async function uploadAttachment(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return axios.post(`${API_URL}/room/message/upload`, formData, {
+    withCredentials: true,
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+}

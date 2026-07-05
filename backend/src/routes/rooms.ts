@@ -9,6 +9,7 @@ import { getIO } from '../socket/index.js';
 const RoomRouter = Router()
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
 import { MessageModel } from '../models/messages.js';
+import { uploadAttachment } from '../config/cloudinary.js';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
@@ -863,7 +864,7 @@ const messages = await MessageModel.find(filter)
 
 const nextCursor = 
  messages.length>0
- ? messages[messages.length-1]._id
+ ? messages[messages.length-1]?._id
  : null
 
   res.status(200).json({
@@ -880,6 +881,37 @@ const nextCursor =
         message: "Internal server error",
       } )
   }
+})
+
+// upload files and other
+RoomRouter.post("/message/upload",authMiddleware,uploadAttachment.single("file"),(req:Request, res:Response)=>{
+   try {
+      if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+         if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No file uploaded"
+        });
+      }
+
+      const file = req.file as any;
+      console.log(file)
+      return res.status(200).json({
+        success: true,
+        url: file.path,
+        publicId: file.filename,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size
+      });
+   } catch (error) {
+     console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: "Upload failed"})
+   }
 })
 
 export default RoomRouter;

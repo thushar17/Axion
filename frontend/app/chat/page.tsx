@@ -32,7 +32,8 @@ import {
 } from "react";
 import { PinnedMessagesSheet } from "@/src/components/PinnedMessagesSheet";
 import {
-  Pin
+  Pin,
+  X
 } from "lucide-react";
 import { useSocket } from "./hooks/useSocket";
 import { useMessage } from "./hooks/useMessage";
@@ -468,6 +469,7 @@ export default function ChatPage() {
           handleInputChange={handleInputChange}
           selectedRoom={selectedRoom}
           input={input}
+          setInput={setInput}
         />
       </div>
 

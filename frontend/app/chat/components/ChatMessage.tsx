@@ -17,8 +17,8 @@ type Props = {
   setReplyingTo: React.Dispatch<React.SetStateAction<any>>;
   setEditingMessageId: React.Dispatch<React.SetStateAction<string | null>>;
   setInput: React.Dispatch<React.SetStateAction<string>>;
-  inputRef: React.RefObject<HTMLInputElement>;
-  messagesEndRef: React.RefObject<HTMLDivElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  messagesEndRef: React.RefObject<HTMLDivElement | null>;
 };
 
 function MessageIconPlaceholder() {

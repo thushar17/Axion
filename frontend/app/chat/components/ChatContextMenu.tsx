@@ -16,7 +16,7 @@ type Props = {
   user: any;
   setEditingMessageId: React.Dispatch<React.SetStateAction<string | null>>;
   setInput: React.Dispatch<React.SetStateAction<string>>;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   handleDeleteMessage: (messageId: string) => void;
 };
 
