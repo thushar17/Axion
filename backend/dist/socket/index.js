@@ -7,9 +7,20 @@ import { registerRoomHandler } from "./handler/room.js";
 let io;
 export const initializedSocket = (server) => {
     console.log("Socket server initialized");
+    const allowedOrigins = [
+        'http://localhost:3000',
+        'https://axion-alpha-blush.vercel.app',
+    ];
     io = new Server(server, {
         cors: {
-            origin: "http://localhost:3000",
+            origin: function (origin, callback) {
+                if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+                    callback(null, true);
+                }
+                else {
+                    callback(new Error('Not allowed by CORS'));
+                }
+            },
             credentials: true,
         },
     });
