@@ -10,6 +10,7 @@ const RoomRouter = Router()
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
 import { MessageModel } from '../models/messages.js';
 import { uploadAttachment } from '../config/cloudinary.js';
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, type } = req.body;
@@ -240,7 +241,7 @@ RoomRouter.post("/generate-invite", authMiddleware , async (req: Request, res: R
 
       res.status(200).json({
         success: true,
-        inviteLink: `http://localhost:3000/invite/${room.inviteLink}`
+        inviteLink: `${clientUrl}/invite/${room.inviteLink}`
       })
       
 
