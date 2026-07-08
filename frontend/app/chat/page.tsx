@@ -111,7 +111,8 @@ export default function ChatPage() {
   } = useMembers({ selectedRoom, user });
 
   // message state hook
-  const { messages, setMessages } = useMessageStore();
+  const { messages, setMessages, attachment, 
+    setAttachment } = useMessageStore();
 
   const { typingUsers,
     emitMessage,
@@ -142,7 +143,9 @@ export default function ChatPage() {
     setSelectedRoom,
     setShowClearConfirm,
     messages,
-    setMessages
+    setMessages,
+    attachment,
+    setAttachment
   });
 
   const {
@@ -470,6 +473,8 @@ export default function ChatPage() {
           selectedRoom={selectedRoom}
           input={input}
           setInput={setInput}
+          attachment ={attachment}
+          setAttachment ={setAttachment}
         />
       </div>
 

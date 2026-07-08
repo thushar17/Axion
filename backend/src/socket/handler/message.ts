@@ -34,16 +34,17 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
     const Dbmessage = await MessageModel.create({
       roomId: data.roomId,
       sender: userId,
-      content: data.content,
-      replyTo: data.replyTo || null
+      content: data.content || "",
+      replyTo: data.replyTo || null,
+      attachment: data.attachment || null
     });
 
     // updating room for last message
     const updatedRoom =  await RoomModel.findByIdAndUpdate(Dbmessage.roomId,{
       lastMessage:{
-        content: Dbmessage.content,
+        content: Dbmessage.content || (data.attachment ? "Sent an attachment" : ""),
         sender: userId,
-        type: "text"
+        type: data.attachment ? "attachment" : "text"
       },
       lastMessageAt:Dbmessage.createdAt
     },

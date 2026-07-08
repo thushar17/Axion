@@ -14,7 +14,7 @@ const MessageSchema = new Schema({
     },
     content: {
         type: String,
-        required: true
+        default: ""
     },
     status: {
         type: String,
@@ -72,7 +72,14 @@ const MessageSchema = new Schema({
 
         ],
         default: []
-    }
+    },
+     attachment: {
+      url: String,
+      publicId: String,
+      fileName: String,
+      mimeType: String,
+      size: Number,
+    },
         
 })
 

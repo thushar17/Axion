@@ -24,13 +24,14 @@ export function useSocket({
 }: Props) {
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   // emits. 
-  const emitMessage = (selectedRoom: any, input: string, replyingTo: any) => {
+  const emitMessage = (selectedRoom: any, input: string, replyingTo: any, attachment?: any) => {
     socket.emit(
       "send-message",
       {
         roomId: selectedRoom._id,
         content: input,
         replyTo: replyingTo?._id,
+        attachment: attachment,
       },
       (response: any) => {
         console.log("ACK:", response);

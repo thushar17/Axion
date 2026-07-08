@@ -1,7 +1,12 @@
+
 import React, { useRef, useState } from "react";
 import { Send, Paperclip, Loader2 } from "lucide-react";
 import { uploadAttachment } from "../services/message.service";
 import { toast } from "sonner";
+import { attachment } from "@/src/types/attachment";
+
+
+
 
 type Props = {
   sendMessage: (e: React.FormEvent) => void;
@@ -10,6 +15,8 @@ type Props = {
   selectedRoom: any;
   input: string;
   setInput: (value: string) => void;
+  attachment: attachment | null
+  setAttachment: React.Dispatch<React.SetStateAction<attachment | null>>
 };
 
 export default function MessageInput({
@@ -18,10 +25,13 @@ export default function MessageInput({
   handleInputChange,
   selectedRoom,
   input,
-  setInput
+  setInput,
+  attachment,
+  setAttachment
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -31,7 +41,13 @@ export default function MessageInput({
       setIsUploading(true);
       const res = await uploadAttachment(file);
       if (res.data.success) {
-        setInput(input + (input ? " " : "") + res.data.url);
+          console.log("response",res.data)
+          setAttachment({
+            url:res.data.url,
+            publicId: res.data.publicId,
+             fileName: res.data.fileName,
+            mimeType: res.data.mimeType,
+          })
         toast.success("File uploaded successfully");
       }
     } catch (error) {
@@ -44,17 +60,77 @@ export default function MessageInput({
       }
     }
   };
+
+  const renderPreview = () => {
+  if (!attachment) return null;
+
+  if (attachment.mimeType.startsWith("image/")) {
+    return (
+      <img
+        src={attachment.url}
+        alt={attachment.fileName}
+        className="max-h-48 rounded-lg object-cover"
+      />
+    );
+  }
+
+  if (attachment.mimeType === "application/pdf") {
+    return (
+      <div className="flex items-center justify-center h-32">
+        📄 PDF Preview
+      </div>
+    );
+  }
+
+  if (attachment.mimeType.startsWith("video/")) {
+    return (
+      <video
+        src={attachment.url}
+        controls
+        className="max-h-48 rounded-lg"
+      />
+    );
+  }
+
+  if (attachment.mimeType.startsWith("audio/")) {
+    return (
+      <audio
+        src={attachment.url}
+        controls
+      />
+    );
+  }
+
+  return <div>Unsupported file</div>;
+};
   return (
     <form
       onSubmit={sendMessage}
-      className="px-4 py-3 border-t shrink-0"
+      className="px-4 py-3 border-t shrink-0 flex flex-col gap-2"
       style={{
         background: "var(--bg-sidebar)",
         borderColor: "var(--border-subtle)",
       }}
     >
+      {attachment && (
+        <div className="rounded-xl border p-2 w-fit relative group" style={{ background: "var(--bg-input)", borderColor: "var(--border)" }}>
+          {renderPreview()}
+          <div className="flex items-center justify-between mt-2 gap-4">
+            <p className="text-sm truncate max-w-[200px]" style={{ color: "var(--text-primary)" }}>
+              {attachment.fileName}
+            </p>
+            <button
+              type="button"
+              onClick={() => setAttachment(null)}
+              className="text-red-500 hover:text-red-700 p-1"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
       <div
-        className="flex items-center gap-2 rounded-xl px-3 py-2 border"
+        className="flex items-center gap-2 rounded-xl px-3 py-2 border w-full"
         style={{
           background: "var(--bg-input)",
           borderColor: "var(--border)",
@@ -91,7 +167,7 @@ export default function MessageInput({
         />
         <button
           type="submit"
-          disabled={!input.trim() || !selectedRoom}
+          disabled={(!input.trim() && !attachment) || !selectedRoom || isUploading}
           className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 disabled:opacity-30"
           style={{ background: "var(--accent)", color: "white" }}
         >

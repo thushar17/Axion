@@ -206,7 +206,24 @@ export default function MessageBubble({
                           This message was deleted
                         </p>
                       ) : (
-                        <p style={{ margin: 0 }}>{message.content}</p>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {message.attachment && (
+                            <div style={{ maxWidth: "100%", borderRadius: "8px", overflow: "hidden" }}>
+                              {message.attachment.mimeType?.startsWith("image/") ? (
+                                <img src={message.attachment.url} alt={message.attachment.fileName} style={{ maxWidth: "100%", maxHeight: "250px", objectFit: "contain", borderRadius: "8px" }} />
+                              ) : message.attachment.mimeType?.startsWith("video/") ? (
+                                <video src={message.attachment.url} controls style={{ maxWidth: "100%", maxHeight: "250px", borderRadius: "8px" }} />
+                              ) : message.attachment.mimeType?.startsWith("audio/") ? (
+                                <audio src={message.attachment.url} controls style={{ maxWidth: "100%" }} />
+                              ) : (
+                                <a href={message.attachment.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px", background: isMe ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.05)", borderRadius: "8px", color: "inherit", textDecoration: "none", fontSize: "14px" }}>
+                                  📄 {message.attachment.fileName || "Download Attachment"}
+                                </a>
+                              )}
+                            </div>
+                          )}
+                          {message.content && <p style={{ margin: 0 }}>{message.content}</p>}
+                        </div>
                       )}
                       {Object.entries(groupedReactions).length > 0 && (
   <div className="flex gap-2 mt-2 flex-wrap">

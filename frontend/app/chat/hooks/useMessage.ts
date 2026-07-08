@@ -5,13 +5,11 @@ import { toast } from "sonner";
 import { socket } from "@/src/lib/socket";
 import { getSenderId } from "../utils/getSenderId";
 
-
-
 type Props = {
   user: any;
   selectedRoomRef: React.MutableRefObject<any>;
   setUnreadMessageCount: React.Dispatch<React.SetStateAction<{ [roomId: string]: number }>>;
-  emitMessage: (selectedRoom: any, input: string, replyingTo: any) => void;
+  emitMessage: (selectedRoom: any, input: string, replyingTo: any, attachment?: any) => void;
   emitStopTyping: (selectedRoom: any) => void;
   selectedRoom: any;
   allRooms: any[];
@@ -19,9 +17,11 @@ type Props = {
   setShowClearConfirm: React.Dispatch<React.SetStateAction<boolean>>;
   messages: any[];
   setMessages: React.Dispatch<React.SetStateAction<any[]>>;
+  attachment?: any;
+  setAttachment?: React.Dispatch<React.SetStateAction<any>>;
 }
 
-export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitMessage, emitStopTyping, selectedRoom, allRooms, setSelectedRoom, setShowClearConfirm, messages, setMessages }: Props) {
+export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitMessage, emitStopTyping, selectedRoom, allRooms, setSelectedRoom, setShowClearConfirm, messages, setMessages, attachment, setAttachment }: Props) {
   const [input, setInput] = useState("");
   const [replyingTo, setReplyingTo] = useState<any>(null);
 
@@ -338,17 +338,18 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     const currentRoom = selectedRoomRef.current;
-    if (!input.trim() || !currentRoom) return;
+    if ((!input.trim() && !attachment) || !currentRoom) return;
 
     if (editingMessageId) {
       handleEditMessage();
       return;
     }
-    emitMessage(currentRoom, input, replyingTo);
+    emitMessage(currentRoom, input, replyingTo, attachment);
     emitStopTyping(currentRoom);
 
     setInput("");
     setReplyingTo(null);
+    if (setAttachment) setAttachment(null);
   };
 
   return {
