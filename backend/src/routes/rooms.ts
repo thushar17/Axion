@@ -10,6 +10,7 @@ const RoomRouter = Router()
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
 import { MessageModel } from '../models/messages.js';
 import { uploadAttachment } from '../config/cloudinary.js';
+import { success } from 'zod';
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
 RoomRouter.post("/create", authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -913,6 +914,65 @@ RoomRouter.post("/message/upload",authMiddleware,uploadAttachment.single("file")
         success: false,
         message: "Upload failed"})
    }
+})
+
+// dm
+
+RoomRouter.post("/dm",authMiddleware,async (req: Request, res: Response)=>{
+  try {
+     if(!req.user){
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized"
+      })
+     }
+      const userId = req.user.id;
+      const { memberId} = req.body
+
+      if( !memberId){
+        return res.status(400).json({
+          success: false,
+          message: "details missing"
+        }) }
+
+     const room = await RoomModel.findOne({
+      type: "dm",
+      $and: [
+        {"members.user": userId},
+        {"members.user": memberId}
+      ]
+     })
+if (room) {
+  return res.status(200).json({
+    success: true,
+    room,
+  });
+}
+
+const newRoom = await RoomModel.create({
+  type: "dm",
+
+  members: [
+    {
+      user: userId,
+      role: "member",
+    },
+    {
+      user: memberId,
+      role: "member",
+    },
+  ],
+
+  createdBy: userId,
+});
+
+return res.status(201).json({
+  success: true,
+  room: newRoom,
+});
+  } catch (error) {
+    
+  }
 })
 
 export default RoomRouter;
