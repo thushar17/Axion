@@ -14,6 +14,7 @@ type Props = {
   handleLinkGeneration: () => void;
   inviteLink: string;
   setShowDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;
+  handleDm: (memberId: string)=> void;
 };
 
 export default function MembersSidebar({
@@ -25,7 +26,8 @@ export default function MembersSidebar({
   selectedRoom,
   handleLinkGeneration,
   inviteLink,
-  setShowDeleteConfirm
+  setShowDeleteConfirm,
+  handleDm
 }: Props) {
   return (
     <aside
@@ -68,8 +70,10 @@ export default function MembersSidebar({
                 <Avatar
                   username={member.user.username}
                   avatarUrl={member.user.avatar}
+
                   size="sm"
                 />
+            
                 <div className="absolute -bottom-0.5 -right-0.5">
                   <StatusDot
                     status={member.user.status || "offline"}
@@ -104,6 +108,10 @@ export default function MembersSidebar({
               </div>
 
               {/* Remove (admin, not self) */}
+              <button
+                  onClick={()=> handleDm(member.user._id)}>
+                    <h2>dm</h2>
+              </button>
               {isAdmin && member.user._id !== user?.id && (
                 <button
                   onClick={() => handleRemoveMember(member.user._id)}

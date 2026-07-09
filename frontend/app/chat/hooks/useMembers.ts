@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { getMembers, addMember, removeMember, generateInvite } from "../services/room.service";
+import { getMembers, addMember, removeMember, generateInvite, createOrGetDm } from "../services/room.service";
 
 type Props = {
     selectedRoom: any;
     user: any;
+    setAllRooms?: any;
+    setSelectedRoom?: any;
 };
 
-export function useMembers({ selectedRoom, user }: Props) {
+export function useMembers({ selectedRoom, user, setAllRooms, setSelectedRoom }: Props) {
     const [members, setMembers] = useState<any[]>([]);
     const [showAddMember, setShowAddMember] = useState(false);
     const [email, setEmail] = useState("");
@@ -77,6 +79,33 @@ export function useMembers({ selectedRoom, user }: Props) {
         (member) => member.user._id === user?.id && member.role === "admin"
     );
 
+    // dm 
+    const handleDm = async(memberId: string)=>{
+        try {
+            const response = await createOrGetDm(memberId)
+            if(!response.data.success){
+                toast.error(response.data.message)
+                return
+            }
+            console.log("hello",response)
+            const room = response.data.room;
+            if (room && setSelectedRoom) {
+                if (setAllRooms) {
+                    setAllRooms((prev: any[]) => {
+                        const exists = prev.find((r) => r._id === room._id);
+                        if (!exists) {
+                            return [...prev, room];
+                        }
+                        return prev;
+                    });
+                }
+                setSelectedRoom(room);
+            }
+        } catch (error) {
+            console.log(error);
+            toast.error("Failed to create or open DM");
+        }
+    }
     return {
         members,
         setMembers,
@@ -90,6 +119,7 @@ export function useMembers({ selectedRoom, user }: Props) {
         handleAddMember,
         handleRemoveMember,
         handleLinkGeneration,
-        isAdmin
+        isAdmin,
+        handleDm
     };
 }

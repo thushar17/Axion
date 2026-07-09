@@ -1,7 +1,7 @@
 import React from "react";
 import { 
   Menu, Lock, Hash, Search, Star, Users, MoreHorizontal, 
-  Volume2, VolumeX, Archive, Trash2, Pencil, LogOut 
+  Volume2, VolumeX, Archive, Trash2, Pencil, LogOut, User
 } from "lucide-react";
 
 type Props = {
@@ -32,6 +32,7 @@ type Props = {
   setIsRenaming: React.Dispatch<React.SetStateAction<boolean>>;
   setShowLeaveConfirm: React.Dispatch<React.SetStateAction<boolean>>;
   setShowDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;
+  user: any;
 };
 
 function DropdownItem({
@@ -96,8 +97,17 @@ export default function ChatHeader({
   isAdmin,
   setIsRenaming,
   setShowLeaveConfirm,
-  setShowDeleteConfirm
+  setShowDeleteConfirm,
+  user
 }: Props) {
+  let roomName = selectedRoom?.name;
+  if (selectedRoom?.type === "dm" && members) {
+    const otherMember = members.find(m => m.user?._id !== user?.id && m.user?.id !== user?.id);
+    if (otherMember && otherMember.user) {
+      roomName = otherMember.user.username;
+    }
+  }
+
   return (
     <header
       className="h-14 flex items-center justify-between px-4 border-b shrink-0"
@@ -121,6 +131,8 @@ export default function ChatHeader({
             <span style={{ color: "var(--text-muted)" }}>
               {selectedRoom.type === "private" ? (
                 <Lock size={15} />
+              ) : selectedRoom.type === "dm" ? (
+                <User size={15} />
               ) : (
                 <Hash size={15} />
               )}
@@ -168,7 +180,7 @@ export default function ChatHeader({
                 className="text-sm font-semibold tracking-tight truncate"
                 style={{ color: "var(--text-primary)" }}
               >
-                {selectedRoom.name}
+                {roomName}
               </h1>
             )}
             <span

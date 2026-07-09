@@ -37,3 +37,10 @@ export async function removeMember(memberId: string, roomId: string) {
 export async function generateInvite(roomId: string) {
   return axios.post(`${API_URL}/room/generate-invite`, { roomId }, { withCredentials: true });
 }
+
+export async function createOrGetDm(memberId:string) {
+   return axios.post(`${API_URL}/room/dm`,{
+      memberId
+   },
+  {withCredentials: true})
+}

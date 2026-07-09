@@ -1,7 +1,7 @@
 import React from "react";
 import { Avatar } from "@/src/components/Avatar";
 import { StatusDot } from "@/src/components/StatusDot";
-import { Zap, Plus, Lock, Hash, VolumeX, ChevronDown, ChevronRight, Settings } from "lucide-react";
+import { Zap, Plus, Lock, Hash, VolumeX, ChevronDown, ChevronRight, Settings, User } from "lucide-react";
 
 type Props = {
   mobileSidebarOpen: boolean;
@@ -92,6 +92,16 @@ export default function ChatSidebar({
             const isMuted = mutedRoomIds.includes(room._id);
             const isActive = selectedRoom?._id === room._id;
             const unread = unreadMessageCount[room._id];
+            
+            let roomName = room.name;
+            const isDm = room.type === "dm";
+            if (isDm && room.members) {
+              const otherMember = room.members.find((m: any) => m.user?._id !== user?.id && m.user?.id !== user?.id);
+              if (otherMember && otherMember.user) {
+                roomName = otherMember.user.username;
+              }
+            }
+
             return (
               <button
                 key={room._id}
@@ -128,13 +138,15 @@ export default function ChatSidebar({
                 >
                   {room.type === "private" ? (
                     <Lock size={14} />
+                  ) : room.type === "dm" ? (
+                    <User size={14} />
                   ) : (
                     <Hash size={14} />
                   )}
                 </span>
                 {/* Name */}
                 <span className="flex-1 text-sm truncate font-medium">
-                  {room.name}
+                  {roomName}
                   {room.lastMessage && (
                     <span className="text-xs truncate block font-normal" style={{ color: "var(--text-muted)" }}>
                       {room.lastMessage.content || room.lastMessage.type}
@@ -186,6 +198,16 @@ export default function ChatSidebar({
                 archivedRooms.map((room: any) => {
                   const isActive = selectedRoom?._id === room._id;
                   const unread = unreadMessageCount[room._id];
+                  
+                  let roomName = room.name;
+                  const isDm = room.type === "dm";
+                  if (isDm && room.members) {
+                    const otherMember = room.members.find((m: any) => m.user?._id !== user?.id && m.user?.id !== user?.id);
+                    if (otherMember && otherMember.user) {
+                      roomName = otherMember.user.username;
+                    }
+                  }
+                  
                   return (
                     <button
                       key={room._id}
@@ -203,11 +225,13 @@ export default function ChatSidebar({
                     >
                       {room.type === "private" ? (
                         <Lock size={14} className="shrink-0" />
+                      ) : room.type === "dm" ? (
+                        <User size={14} className="shrink-0" />
                       ) : (
                         <Hash size={14} className="shrink-0" />
                       )}
                       <span className="flex-1 text-sm truncate font-medium">
-                        {room.name}
+                        {roomName}
                         {room.lastMessage && (
                           <span className="text-xs truncate block font-normal" style={{ color: "var(--text-muted)" }}>
                             {room.lastMessage.content || room.lastMessage.type}

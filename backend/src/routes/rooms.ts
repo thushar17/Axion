@@ -62,7 +62,7 @@ RoomRouter.get('/getRooms', authMiddleware, async (req: Request, res: Response) 
     }
     const rooms = await RoomModel.find({
       "members.user": user.id
-    }).sort({lastMessageAt: -1});
+    }).populate("members.user", "username avatar").sort({lastMessageAt: -1});
     
     res.json({
       success: true,
@@ -927,6 +927,7 @@ RoomRouter.post("/dm",authMiddleware,async (req: Request, res: Response)=>{
       })
      }
       const userId = req.user.id;
+     
       const { memberId} = req.body
 
       if( !memberId){
@@ -943,6 +944,8 @@ RoomRouter.post("/dm",authMiddleware,async (req: Request, res: Response)=>{
       ]
      })
 if (room) {
+  // Populate so it has the same shape as getRooms
+  await room.populate("members.user", "username avatar");
   return res.status(200).json({
     success: true,
     room,
@@ -951,7 +954,7 @@ if (room) {
 
 const newRoom = await RoomModel.create({
   type: "dm",
-
+  name: "DM",
   members: [
     {
       user: userId,
@@ -966,12 +969,19 @@ const newRoom = await RoomModel.create({
   createdBy: userId,
 });
 
+// Populate so it has the same shape as getRooms
+await newRoom.populate("members.user", "username avatar");
+
 return res.status(201).json({
   success: true,
   room: newRoom,
 });
   } catch (error) {
-    
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 })
 

@@ -107,8 +107,9 @@ export default function ChatPage() {
     handleAddMember,
     handleRemoveMember,
     handleLinkGeneration,
-    isAdmin
-  } = useMembers({ selectedRoom, user });
+    isAdmin,
+    handleDm
+  } = useMembers({ selectedRoom, user, setAllRooms, setSelectedRoom });
 
   // message state hook
   const { messages, setMessages, attachment, 
@@ -364,6 +365,7 @@ export default function ChatPage() {
           setIsRenaming={setIsRenaming}
           setShowLeaveConfirm={setShowLeaveConfirm}
           setShowDeleteConfirm={setShowDeleteConfirm}
+          user={user}
         />
         {/* Pinned message banner */}
         {selectedRoom && pinnedMessages.length > 0 && (
@@ -491,6 +493,7 @@ export default function ChatPage() {
           handleLinkGeneration={handleLinkGeneration}
           inviteLink={inviteLink}
           setShowDeleteConfirm={setShowDeleteConfirm}
+          handleDm={handleDm}
         />
       )}
 
