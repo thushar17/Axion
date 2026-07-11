@@ -19,6 +19,8 @@ export const metadata: Metadata = {
     "Axion is a premium real-time chat platform built for high-performance teams. Instant messaging, presence tracking, and rich collaboration — all in one dark, focused workspace.",
 };
 
+import { GoogleProvider } from "@/src/components/GoogleProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,7 +32,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[var(--bg-app)] text-[var(--text-primary)]">
-        {children}
+        <GoogleProvider>
+          {children}
+        </GoogleProvider>
         <Toaster
           position="bottom-right"
           theme="dark"
