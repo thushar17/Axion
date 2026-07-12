@@ -5,6 +5,9 @@ import { socketAuthMiddleware } from "./middleware/auth.js";
 import { registerMessageHandlers } from "./handler/message.js";
 import { registerRoomHandler } from "./handler/room.js";
 import type { AuthSocket } from "../types/index.js";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { pubClient, subClient } from "../lib/redis.js";
+import "../workers/notification.worker.js";
 let io: Server;
 
 export const initializedSocket = (server: http.Server) => {
@@ -27,6 +30,8 @@ export const initializedSocket = (server: http.Server) => {
       credentials: true,
     },
   });
+
+  io.adapter(createAdapter(pubClient, subClient))
 
   // Socket Authentication Middleware
   socketAuthMiddleware(io)

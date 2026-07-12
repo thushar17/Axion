@@ -6,7 +6,7 @@ const RoomSchema = new Schema({
     },
     type: {
         type: String,
-        enum: ["public", "private"],
+        enum: ["public", "private", "dm"],
         required: true
     },
     members: [{

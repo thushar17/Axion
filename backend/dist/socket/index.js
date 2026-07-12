@@ -4,6 +4,8 @@ import { handelOnlineUsers } from "./handler/presence.js";
 import { socketAuthMiddleware } from "./middleware/auth.js";
 import { registerMessageHandlers } from "./handler/message.js";
 import { registerRoomHandler } from "./handler/room.js";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { pubClient, subClient } from "../lib/redis.js";
 let io;
 export const initializedSocket = (server) => {
     console.log("Socket server initialized");
@@ -24,6 +26,7 @@ export const initializedSocket = (server) => {
             credentials: true,
         },
     });
+    io.adapter(createAdapter(pubClient, subClient));
     // Socket Authentication Middleware
     socketAuthMiddleware(io);
     io.on("connection", (socket) => {

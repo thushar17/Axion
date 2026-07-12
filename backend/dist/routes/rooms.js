@@ -9,6 +9,8 @@ const RoomRouter = Router();
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
 import { MessageModel } from '../models/messages.js';
 import { uploadAttachment } from '../config/cloudinary.js';
+import { success } from 'zod';
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
 RoomRouter.post("/create", authMiddleware, async (req, res) => {
     try {
         const { name, type } = req.body;
@@ -56,7 +58,7 @@ RoomRouter.get('/getRooms', authMiddleware, async (req, res) => {
         }
         const rooms = await RoomModel.find({
             "members.user": user.id
-        }).sort({ lastMessageAt: -1 });
+        }).populate("members.user", "username avatar").sort({ lastMessageAt: -1 });
         res.json({
             success: true,
             data: rooms
@@ -213,7 +215,7 @@ RoomRouter.post("/generate-invite", authMiddleware, async (req, res) => {
         }
         res.status(200).json({
             success: true,
-            inviteLink: `http://localhost:3000/invite/${room.inviteLink}`
+            inviteLink: `${clientUrl}/invite/${room.inviteLink}`
         });
     }
     catch (error) {
@@ -793,6 +795,68 @@ RoomRouter.post("/message/upload", authMiddleware, uploadAttachment.single("file
         return res.status(500).json({
             success: false,
             message: "Upload failed"
+        });
+    }
+});
+// dm
+RoomRouter.post("/dm", authMiddleware, async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized"
+            });
+        }
+        const userId = req.user.id;
+        const { memberId } = req.body;
+        if (!memberId) {
+            return res.status(400).json({
+                success: false,
+                message: "details missing"
+            });
+        }
+        const room = await RoomModel.findOne({
+            type: "dm",
+            $and: [
+                { "members.user": userId },
+                { "members.user": memberId }
+            ]
+        });
+        if (room) {
+            // Populate so it has the same shape as getRooms
+            await room.populate("members.user", "username avatar");
+            return res.status(200).json({
+                success: true,
+                room,
+            });
+        }
+        const newRoom = await RoomModel.create({
+            type: "dm",
+            name: "DM",
+            members: [
+                {
+                    user: userId,
+                    role: "member",
+                },
+                {
+                    user: memberId,
+                    role: "member",
+                },
+            ],
+            createdBy: userId,
+        });
+        // Populate so it has the same shape as getRooms
+        await newRoom.populate("members.user", "username avatar");
+        return res.status(201).json({
+            success: true,
+            room: newRoom,
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
         });
     }
 });

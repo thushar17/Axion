@@ -89,6 +89,13 @@ AuthRouter.post("/login", async (req: Request, res: Response) => {
         })
     }
 
+    if (!user.passwordHash) {
+        return res.status(400).json({
+            success: false,
+            message: "Password is not set for this account. Try signing in with Google."
+        })
+    }
+
     const checkPassword = await bcrypt.compare(password, user.passwordHash)
     if (!checkPassword) {
         return res.status(400).json({
@@ -124,10 +131,13 @@ AuthRouter.post("/google", async (req: Request, res: Response) => {
     }
     
     try {
-        const ticket = await googleClient.verifyIdToken({
+        const verifyOptions: any = {
             idToken: credential,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
+        };
+        if (process.env.GOOGLE_CLIENT_ID) {
+            verifyOptions.audience = process.env.GOOGLE_CLIENT_ID;
+        }
+        const ticket = await googleClient.verifyIdToken(verifyOptions) as any;
         const payload = ticket.getPayload();
         
         if (!payload || !payload.email) {

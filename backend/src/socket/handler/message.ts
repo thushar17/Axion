@@ -2,6 +2,7 @@ import type { Socket, Server } from "socket.io";
 import { MessageModel } from "../../models/messages.js";
 import type { AuthSocket } from "../../types/index.js";
 import { RoomModel } from "../../models/rooms.js";
+import { notificationQueue } from "../../jobs/notification.queue.js";
 export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
   socket.on("send-message", async (data, callback) => {
     
@@ -38,7 +39,7 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
       replyTo: data.replyTo || null,
       attachment: data.attachment || null
     });
-
+    
     // updating room for last message
     const updatedRoom =  await RoomModel.findByIdAndUpdate(Dbmessage.roomId,{
       lastMessage:{
@@ -49,10 +50,7 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
       lastMessageAt:Dbmessage.createdAt
     },
   {  new: true})
-    callback({
-      success: true,
-      messageId: Dbmessage._id
-    })
+    
     const message=  await Dbmessage.populate([
         {
         path: "sender",
@@ -66,6 +64,24 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
         }
     }
       ])
+      console.log(message)
+
+      // bullMq notification 
+      console.log("Adding BullMQ job...");
+    try {
+  await notificationQueue.add("new-message", {
+    roomId: data.roomId,
+    senderId: userId,
+    messageId: Dbmessage._id,
+  });
+} catch (err) {
+  console.error("Failed to enqueue notification:", err);
+}
+
+callback({
+      success: true,
+      messageId: Dbmessage._id
+    })
     io.to(data.roomId).emit("new-message", message);
     io.to(data.roomId).emit("last-message",{
       roomId: data.roomId,
@@ -86,8 +102,6 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
       console.log("message not found")
       return
     }
-
-    console.log("updated message", message)
     io.to(message.roomId.toString()).emit("message-status-updated", {
       messageId: message._id,
       status: "delivered"

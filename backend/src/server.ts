@@ -8,6 +8,7 @@ import { initializedSocket } from './socket/index.js';
 import AuthRouter from './routes/auth.js';
 import RoomRouter from './routes/rooms.js';
 import { RoomModel } from './models/rooms.js';
+import { connectRedis } from './lib/redis.js';
 
 dotenv.config();
 const app = express()
@@ -31,6 +32,7 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser())
 await connectDB()
+await connectRedis()
 await RoomModel.syncIndexes()
 const PORT = process.env.PORT || 8000
 
