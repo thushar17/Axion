@@ -1,44 +1,40 @@
-import mongoose ,{Schema, model} from "mongoose";
-
+import mongoose, { Schema, model } from "mongoose";
 const notificationSchema = new Schema({
     recipient: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true 
+        required: true
     },
-    sender:{
+    sender: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    type:{
+    type: {
         type: String,
-        enum:["mention", "reply", "direct_message", "room_invite", "reaction"],
+        enum: ["mention", "reply", "direct_message", "room_invite", "reaction"],
         required: true
     },
-    roomId:{
+    roomId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Room',
         required: true
     },
-    messageId:{
+    messageId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Message',
         required: false
     },
-    emoji:{
+    emoji: {
         type: String,
         required: false
     },
-    isRead:{
-        type:Boolean,
+    isRead: {
+        type: Boolean,
         default: false
     }
-},
-    {
-        timestamps: true
-    })
-
-
-export const  notificationModel = model("Notification", notificationSchema)
-
+}, {
+    timestamps: true
+});
+export const notificationModel = model("Notification", notificationSchema);
+//# sourceMappingURL=notification.js.map

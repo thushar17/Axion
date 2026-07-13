@@ -3,6 +3,7 @@ import {
   Menu, Lock, Hash, Search, Star, Users, MoreHorizontal, 
   Volume2, VolumeX, Archive, Trash2, Pencil, LogOut, User
 } from "lucide-react";
+import { NotificationBell } from "@/src/components/NotificationBell";
 
 type Props = {
   setMobileSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -33,6 +34,11 @@ type Props = {
   setShowLeaveConfirm: React.Dispatch<React.SetStateAction<boolean>>;
   setShowDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;
   user: any;
+  notifications: any[];
+  notificationsUnreadCount: number;
+  notificationsLoading: boolean;
+  onMarkAllNotificationsRead: () => void;
+  onNotificationClick: (notification: any) => void;
 };
 
 function DropdownItem({
@@ -98,7 +104,12 @@ export default function ChatHeader({
   setIsRenaming,
   setShowLeaveConfirm,
   setShowDeleteConfirm,
-  user
+  user,
+  notifications,
+  notificationsUnreadCount,
+  notificationsLoading,
+  onMarkAllNotificationsRead,
+  onNotificationClick
 }: Props) {
   let roomName = selectedRoom?.name;
   if (selectedRoom?.type === "dm" && members) {
@@ -201,89 +212,104 @@ export default function ChatHeader({
       </div>
 
       {/* Right actions */}
-      {selectedRoom && (
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Search Box */}
-          <div className="relative flex items-center mr-2 hidden sm:flex">
-            <Search size={14} className="absolute left-2.5" style={{ color: "var(--text-muted)" }} />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 text-sm rounded-lg border transition-all duration-300 w-32 focus:w-48 md:w-40 md:focus:w-64 outline-none"
-              style={{
-                background: "var(--bg-app)",
-                borderColor: "var(--border-subtle)",
-                color: "var(--text-primary)",
-              }}
-            />
-            {searchResults.length > 0 && (
-              <div
-                className="absolute top-full right-0 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border shadow-2xl z-50"
+      <div className="flex items-center gap-1.5 shrink-0">
+        {selectedRoom && (
+          <>
+            {/* Search Box */}
+            <div className="relative flex items-center mr-2 hidden sm:flex">
+              <Search size={14} className="absolute left-2.5" style={{ color: "var(--text-muted)" }} />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-sm rounded-lg border transition-all duration-300 w-32 focus:w-48 md:w-40 md:focus:w-64 outline-none"
                 style={{
-                  background: "var(--bg-surface)",
-                  borderColor: "var(--border)",
+                  background: "var(--bg-app)",
+                  borderColor: "var(--border-subtle)",
+                  color: "var(--text-primary)",
                 }}
-              >
-                <div className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider" style={{ borderColor: "var(--border-subtle)", color: "var(--text-muted)" }}>
-                  Search Results
+              />
+              {searchResults.length > 0 && (
+                <div
+                  className="absolute top-full right-0 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border shadow-2xl z-50"
+                  style={{
+                    background: "var(--bg-surface)",
+                    borderColor: "var(--border)",
+                  }}
+                >
+                  <div className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider" style={{ borderColor: "var(--border-subtle)", color: "var(--text-muted)" }}>
+                    Search Results
+                  </div>
+                  {searchResults.map((message) => (
+                    <button
+                      key={message._id}
+                      onClick={() => {
+                        scrollToMessage(message._id);
+                        setSearchResults([]);
+                        setSearchQuery("");
+                      }}
+                      className="w-full text-left px-3 py-2.5 transition-colors border-b last:border-0 hover:bg-[var(--bg-surface-hover)]"
+                      style={{ borderColor: "var(--border-subtle)" }}
+                    >
+                      <div className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
+                        {message.content}
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                {searchResults.map((message) => (
-                  <button
-                    key={message._id}
-                    onClick={() => {
-                      scrollToMessage(message._id);
-                      setSearchResults([]);
-                      setSearchQuery("");
-                    }}
-                    className="w-full text-left px-3 py-2.5 transition-colors border-b last:border-0 hover:bg-[var(--bg-surface-hover)]"
-                    style={{ borderColor: "var(--border-subtle)" }}
-                  >
-                    <div className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
-                      {message.content}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Starred toggle */}
-          <button
-            onClick={() => setShowStarredPanel((v) => !v)}
-            className="p-2 rounded-lg transition-all"
-            style={{
-              background: showStarredPanel
-                ? "var(--accent-muted)"
-                : "transparent",
-              color: showStarredPanel
-                ? "var(--accent-hover)"
-                : "var(--text-muted)",
-            }}
-            title="Starred messages"
-          >
-            <Star size={16} fill={showStarredPanel ? "currentColor" : "none"} />
-          </button>
+            {/* Starred toggle */}
+            <button
+              onClick={() => setShowStarredPanel((v) => !v)}
+              className="p-2 rounded-lg transition-all"
+              style={{
+                background: showStarredPanel
+                  ? "var(--accent-muted)"
+                  : "transparent",
+                color: showStarredPanel
+                  ? "var(--accent-hover)"
+                  : "var(--text-muted)",
+              }}
+              title="Starred messages"
+            >
+              <Star size={16} fill={showStarredPanel ? "currentColor" : "none"} />
+            </button>
 
-          {/* Members toggle */}
-          <button
-            onClick={() => setShowMembersPanel((v) => !v)}
-            className="p-2 rounded-lg transition-all"
-            style={{
-              background: showMembersPanel
-                ? "var(--accent-muted)"
-                : "transparent",
-              color: showMembersPanel
-                ? "var(--accent-hover)"
-                : "var(--text-muted)",
-            }}
-            title="Members"
-          >
-            <Users size={16} />
-          </button>
+            {/* Members toggle */}
+            <button
+              onClick={() => setShowMembersPanel((v) => !v)}
+              className="p-2 rounded-lg transition-all"
+              style={{
+                background: showMembersPanel
+                  ? "var(--accent-muted)"
+                  : "transparent",
+                color: showMembersPanel
+                  ? "var(--accent-hover)"
+                  : "var(--text-muted)",
+              }}
+              title="Members"
+            >
+              <Users size={16} />
+            </button>
+          </>
+        )}
 
-          {/* Room settings dropdown */}
+        {/* Notification Bell */}
+        {user && (
+          <NotificationBell
+            notifications={notifications}
+            unreadCount={notificationsUnreadCount}
+            loading={notificationsLoading}
+            onMarkAllRead={onMarkAllNotificationsRead}
+            onNotificationClick={onNotificationClick}
+          />
+        )}
+
+        {selectedRoom && (
+          /* Room settings dropdown */
           <div className="relative">
             <button
               onClick={(e) => {
@@ -388,8 +414,8 @@ export default function ChatHeader({
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </header>
   );
 }

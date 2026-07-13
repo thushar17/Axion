@@ -39,6 +39,7 @@ import { useSocket } from "./hooks/useSocket";
 import { useMessage } from "./hooks/useMessage";
 import { useRoom } from "./hooks/useRoom";
 import { useRoomStore } from "./hooks/useRoomStore";
+import { useNotifications } from "./hooks/useNotifications";
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 
@@ -82,6 +83,36 @@ export default function ChatPage() {
     activeRooms,
     archivedRooms
   } = useRoomStore();
+
+  // Notifications custom hook
+  const {
+    notifications,
+    unreadCount: notificationsUnreadCount,
+    loading: notificationsLoading,
+    markAllRead: markAllNotificationsRead,
+    markOneRead: markOneNotificationRead,
+    registerRoomSelector,
+  } = useNotifications(user, selectedRoom);
+
+  const handleNotificationClick = (notification: any) => {
+    markOneNotificationRead(notification._id);
+    const targetRoomId = (typeof notification.roomId === "object" && notification.roomId)
+      ? notification.roomId._id
+      : (notification.roomId as string);
+    const room = allRooms.find((r) => r._id === targetRoomId);
+    if (room) {
+      setSelectedRoom(room);
+    }
+  };
+
+  useEffect(() => {
+    registerRoomSelector((roomId: string) => {
+      const room = allRooms.find((r) => r._id === roomId);
+      if (room) {
+        setSelectedRoom(room);
+      }
+    });
+  }, [allRooms, setSelectedRoom, registerRoomSelector]);
 
   useEffect(() => {
     selectedRoomRef.current = selectedRoom;
@@ -366,6 +397,11 @@ export default function ChatPage() {
           setShowLeaveConfirm={setShowLeaveConfirm}
           setShowDeleteConfirm={setShowDeleteConfirm}
           user={user}
+          notifications={notifications}
+          notificationsUnreadCount={notificationsUnreadCount}
+          notificationsLoading={notificationsLoading}
+          onMarkAllNotificationsRead={markAllNotificationsRead}
+          onNotificationClick={handleNotificationClick}
         />
         {/* Pinned message banner */}
         {selectedRoom && pinnedMessages.length > 0 && (

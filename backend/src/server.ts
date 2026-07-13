@@ -7,6 +7,7 @@ import { connectDB } from './config/db.js';
 import { initializedSocket } from './socket/index.js';
 import AuthRouter from './routes/auth.js';
 import RoomRouter from './routes/rooms.js';
+import NotificationRouter from './routes/notification.js';
 import { RoomModel } from './models/rooms.js';
 import { connectRedis } from './lib/redis.js';
 
@@ -40,6 +41,7 @@ const server = http.createServer(app)
 initializedSocket(server)
 app.use("/auth", AuthRouter)
 app.use("/room", RoomRouter)
+app.use("/notification", NotificationRouter)
 app.get('/', (req, res) => {
   res.json({ message: 'Sucess' })
 })

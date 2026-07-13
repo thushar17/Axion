@@ -1,5 +1,4 @@
 import mongoose, { Schema, model, mongo } from 'mongoose';
-import { required } from 'zod/mini';
 const MessageSchema = new Schema({
     roomId: {
         type: mongoose.Schema.Types.ObjectId,

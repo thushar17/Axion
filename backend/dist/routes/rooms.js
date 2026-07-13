@@ -2,6 +2,7 @@ import { response, Router } from 'express';
 import { RoomModel } from '../models/rooms.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { UserModel } from '../models/user.js';
+import { notificationModel } from '../models/notification.js';
 import { checkForUserRole } from '../helpers/roomPermission.js';
 import { Types } from 'mongoose';
 import { getIO } from '../socket/index.js';
@@ -98,6 +99,26 @@ RoomRouter.post('/add-member', authMiddleware, async (req, res) => {
                 success: true,
                 message: "User is alreay member in room or room doesn't exist"
             });
+        }
+        // Create room invite notification
+        if (req.user) {
+            const notification = await notificationModel.create({
+                recipient: userId,
+                sender: req.user.id,
+                type: "room_invite",
+                roomId: roomId,
+            });
+            try {
+                const populated = await notification.populate([
+                    { path: "sender", select: "username avatar status" },
+                    { path: "roomId", select: "name type" }
+                ]);
+                const io = getIO();
+                io.to(userId.toString()).emit("notification", populated);
+            }
+            catch (ioErr) {
+                console.error("Failed to emit room invite notification:", ioErr);
+            }
         }
         res.status(200).json({
             success: true,
@@ -629,8 +650,10 @@ RoomRouter.post("/messages/toggle-reaction", authMiddleware, async (req, res) =>
             });
         }
         const existingReaction = message.reactions.find(reaction => reaction.user.toString() === userId);
+        let shouldNotify = false;
         if (!existingReaction) {
             message.reactions.push({ user: userId, emoji: emoji });
+            shouldNotify = true;
         }
         else {
             if (existingReaction?.emoji === emoji) {
@@ -638,9 +661,31 @@ RoomRouter.post("/messages/toggle-reaction", authMiddleware, async (req, res) =>
             }
             else {
                 existingReaction.emoji = emoji;
+                shouldNotify = true;
             }
         }
         await message.save();
+        if (shouldNotify && message.sender.toString() !== userId) {
+            const notification = await notificationModel.create({
+                recipient: message.sender,
+                sender: userId,
+                type: "reaction",
+                roomId: message.roomId,
+                messageId: message._id,
+                emoji: emoji
+            });
+            try {
+                const populated = await notification.populate([
+                    { path: "sender", select: "username avatar status" },
+                    { path: "roomId", select: "name type" }
+                ]);
+                const io = getIO();
+                io.to(message.sender.toString()).emit("notification", populated);
+            }
+            catch (ioErr) {
+                console.error("Failed to emit reaction notification:", ioErr);
+            }
+        }
         const io = getIO();
         io.to(message.roomId.toString()).emit("user-reacted", {
             messageId: message._id,

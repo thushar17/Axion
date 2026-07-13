@@ -6,6 +6,7 @@ const onlineUser = new Map<string, number>()
 
 export const handelOnlineUsers = async (socket: AuthSocket) => {
   const userId = socket.user.id;
+  socket.join(userId)
 
   const currentCount = onlineUser.get(userId) ?? 0;
   const newCount = currentCount + 1;

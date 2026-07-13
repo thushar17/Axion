@@ -1,1 +1,1 @@
-{"version":3,"file":"bullmq.js","sourceRoot":"","sources":["../../src/lib/bullmq.ts"],"names":[],"mappings":"AAAA,OAAO,OAAO,MAAM,SAAS,CAAC;AAE9B,MAAM,CAAC,MAAM,cAAc,GAAG,IAAI,OAAO,CAAC,KAAK,CAAC;IAC5C,IAAI,EAAE,WAAW;IACjB,IAAI,EAAE,IAAI;CACb,CAAC,CAAC"}
+{"version":3,"file":"bullmq.js","sourceRoot":"","sources":["../../src/lib/bullmq.ts"],"names":[],"mappings":"AAAA,OAAO,OAAO,MAAM,SAAS,CAAC;AAE9B,MAAM,CAAC,MAAM,cAAc,GAAG,IAAI,OAAO,CAAC,KAAK,CAAC;IAC5C,IAAI,EAAE,WAAW;IACjB,IAAI,EAAE,IAAI;IACV,oBAAoB,EAAE,IAAI;CAC7B,CAAC,CAAC"}

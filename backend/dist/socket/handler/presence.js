@@ -3,6 +3,7 @@ import { Socket } from "socket.io";
 const onlineUser = new Map();
 export const handelOnlineUsers = async (socket) => {
     const userId = socket.user.id;
+    socket.join(userId);
     const currentCount = onlineUser.get(userId) ?? 0;
     const newCount = currentCount + 1;
     onlineUser.set(userId, newCount);

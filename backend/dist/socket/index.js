@@ -6,6 +6,7 @@ import { registerMessageHandlers } from "./handler/message.js";
 import { registerRoomHandler } from "./handler/room.js";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { pubClient, subClient } from "../lib/redis.js";
+import "../workers/notification.worker.js";
 let io;
 export const initializedSocket = (server) => {
     console.log("Socket server initialized");

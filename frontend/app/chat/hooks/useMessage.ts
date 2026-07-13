@@ -264,7 +264,11 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
         )
       );
     });
+// notification
 
+ socket.on("notification",(data)=>{
+   console.log("notification:", data)
+ })
     socket.on("message-deleted", (data) => {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -332,6 +336,7 @@ export function useMessage({ user, selectedRoomRef, setUnreadMessageCount, emitM
       socket.off("message-pinned");
       socket.off("message-edit");
       socket.off("user-reacted");
+      socket.off("notification");
     };
   }, [user, selectedRoomRef, setUnreadMessageCount, scrollToBottom]);
 

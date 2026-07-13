@@ -1,0 +1,1 @@
+{"version":3,"file":"extractMentions.js","sourceRoot":"","sources":["../../src/helpers/extractMentions.ts"],"names":[],"mappings":"AAAA,MAAM,UAAU,eAAe,CAAC,OAAe;IAC1C,MAAM,OAAO,GAAG,OAAO,CAAC,KAAK,CAAC,mBAAmB,CAAC,IAAI,EAAE,CAAC;IACzD,OAAO,OAAO,CAAC,GAAG,CAAC,CAAC,OAAO,EAAE,EAAE,CAAC,OAAO,CAAC,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC;AACvD,CAAC"}

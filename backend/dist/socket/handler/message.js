@@ -1,5 +1,6 @@
 import { MessageModel } from "../../models/messages.js";
 import { RoomModel } from "../../models/rooms.js";
+import { notificationQueue } from "../../jobs/notification.queue.js";
 export const registerMessageHandlers = (socket, io) => {
     socket.on("send-message", async (data, callback) => {
         const userId = socket.user.id;
@@ -37,10 +38,6 @@ export const registerMessageHandlers = (socket, io) => {
             },
             lastMessageAt: Dbmessage.createdAt
         }, { new: true });
-        callback({
-            success: true,
-            messageId: Dbmessage._id
-        });
         const message = await Dbmessage.populate([
             {
                 path: "sender",
@@ -54,6 +51,23 @@ export const registerMessageHandlers = (socket, io) => {
                 }
             }
         ]);
+        console.log(message);
+        // bullMq notification 
+        console.log("Adding BullMQ job...");
+        try {
+            await notificationQueue.add("new-message", {
+                roomId: data.roomId,
+                senderId: userId,
+                messageId: Dbmessage._id,
+            });
+        }
+        catch (err) {
+            console.error("Failed to enqueue notification:", err);
+        }
+        callback({
+            success: true,
+            messageId: Dbmessage._id
+        });
         io.to(data.roomId).emit("new-message", message);
         io.to(data.roomId).emit("last-message", {
             roomId: data.roomId,
@@ -70,7 +84,6 @@ export const registerMessageHandlers = (socket, io) => {
             console.log("message not found");
             return;
         }
-        console.log("updated message", message);
         io.to(message.roomId.toString()).emit("message-status-updated", {
             messageId: message._id,
             status: "delivered"
