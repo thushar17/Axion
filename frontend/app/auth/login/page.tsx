@@ -4,7 +4,6 @@ import Link from "next/link";
 import { FormEvent, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Zap, AlertCircle } from "lucide-react";
-import { GoogleLogin } from '@react-oauth/google';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -224,43 +223,6 @@ function LoginForm() {
             )}
           </button>
         </form>
-        
-        <div className="mt-6 mb-4 flex items-center justify-center space-x-4">
-          <div className="flex-1 h-px bg-[var(--border)]"></div>
-          <span className="text-sm text-[var(--text-muted)]">or continue with</span>
-          <div className="flex-1 h-px bg-[var(--border)]"></div>
-        </div>
-        
-        <div className="flex justify-center">
-          <GoogleLogin
-            onSuccess={async (credentialResponse) => {
-              try {
-                const response = await fetch(`${API_URL}/auth/google`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  credentials: "include",
-                  body: JSON.stringify({ credential: credentialResponse.credential }),
-                });
-                const data = await response.json();
-                if (response.ok) {
-                  router.push(redirect ?? "/chat");
-                } else {
-                  setIsError(true);
-                  setMessage(data.message ?? "Google login failed.");
-                }
-              } catch {
-                setIsError(true);
-                setMessage("Could not connect to the server.");
-              }
-            }}
-            onError={() => {
-              setIsError(true);
-              setMessage("Google login failed.");
-            }}
-            theme="filled_black"
-            shape="circle"
-          />
-        </div>
 
         {/* Footer */}
         <p className="mt-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
