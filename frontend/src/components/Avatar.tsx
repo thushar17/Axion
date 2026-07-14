@@ -3,16 +3,16 @@ import React from "react";
 // ── Deterministic color from username hash ────────────────────────────────────
 function getAvatarColor(name: string): string {
   const palette = [
-    "#6366f1", // indigo
-    "#8b5cf6", // violet
-    "#ec4899", // pink
-    "#f59e0b", // amber
-    "#10b981", // emerald
+    "#5B6EF5", // accent indigo
+    "#7C8AF7", // accent subtle
+    "#3FB950", // success green
+    "#E3A008", // warning amber
+    "#F05252", // danger red
     "#06b6d4", // cyan
-    "#f97316", // orange
-    "#3b82f6", // blue
-    "#14b8a6", // teal
     "#a855f7", // purple
+    "#f97316", // orange
+    "#14b8a6", // teal
+    "#3b82f6", // blue
   ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -28,13 +28,14 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// ── Avatar sizes ──────────────────────────────────────────────────────────────
+// ── Avatar sizes per Zync spec ────────────────────────────────────────────────
+// xs=20px, sm=24px, md=36px, lg=48px, xl=96px
 const sizeMap: Record<string, { container: string; text: string }> = {
-  xs:  { container: "w-6 h-6",   text: "text-[10px]" },
-  sm:  { container: "w-8 h-8",   text: "text-xs" },
-  md:  { container: "w-9 h-9",   text: "text-sm" },
-  lg:  { container: "w-11 h-11", text: "text-base" },
-  xl:  { container: "w-14 h-14", text: "text-lg" },
+  xs: { container: "w-5 h-5",   text: "text-[9px]" },
+  sm: { container: "w-6 h-6",   text: "text-[10px]" },
+  md: { container: "w-9 h-9",   text: "text-xs" },
+  lg: { container: "w-12 h-12", text: "text-sm" },
+  xl: { container: "w-24 h-24", text: "text-xl" },
 };
 
 interface AvatarProps {

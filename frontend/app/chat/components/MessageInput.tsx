@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from "react";
-import { Send, Paperclip, Loader2 } from "lucide-react";
+import { Send, Paperclip, Loader2, X } from "lucide-react";
 import { uploadAttachment } from "../services/message.service";
 import { toast } from "sonner";
 import { attachment } from "@/src/types/attachment";
@@ -69,15 +69,15 @@ export default function MessageInput({
       <img
         src={attachment.url}
         alt={attachment.fileName}
-        className="max-h-48 rounded-lg object-cover"
+        className="max-h-40 rounded-lg object-cover"
       />
     );
   }
 
   if (attachment.mimeType === "application/pdf") {
     return (
-      <div className="flex items-center justify-center h-32">
-        📄 PDF Preview
+      <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+        📄 {attachment.fileName}
       </div>
     );
   }
@@ -87,7 +87,7 @@ export default function MessageInput({
       <video
         src={attachment.url}
         controls
-        className="max-h-48 rounded-lg"
+        className="max-h-40 rounded-lg"
       />
     );
   }
@@ -101,78 +101,136 @@ export default function MessageInput({
     );
   }
 
-  return <div>Unsupported file</div>;
+  return (
+    <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+      📎 {attachment.fileName}
+    </div>
+  );
 };
+
+  const hasContent = input.trim() || attachment;
+
   return (
     <form
       onSubmit={sendMessage}
-      className="px-4 py-3 border-t shrink-0 flex flex-col gap-2"
+      className="shrink-0 flex flex-col gap-2"
       style={{
-        background: "var(--bg-sidebar)",
-        borderColor: "var(--border-subtle)",
+        padding: "16px",
       }}
     >
-      {attachment && (
-        <div className="rounded-xl border p-2 w-fit relative group" style={{ background: "var(--bg-input)", borderColor: "var(--border)" }}>
-          {renderPreview()}
-          <div className="flex items-center justify-between mt-2 gap-4">
-            <p className="text-sm truncate max-w-[200px]" style={{ color: "var(--text-primary)" }}>
-              {attachment.fileName}
-            </p>
-            <button
-              type="button"
-              onClick={() => setAttachment(null)}
-              className="text-red-500 hover:text-red-700 p-1"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Composer container */}
       <div
-        className="flex items-center gap-2 rounded-xl px-3 py-2 border w-full"
+        className="flex flex-col rounded-xl border"
         style={{
-          background: "var(--bg-input)",
-          borderColor: "var(--border)",
+          background: "var(--surface-3)",
+          borderColor: "var(--border-default)",
+          minHeight: "44px",
         }}
       >
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={!selectedRoom || isUploading}
-          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 text-gray-500 hover:text-gray-700 disabled:opacity-30"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          className="hidden"
-        />
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={handleInputChange}
-          placeholder={
-            selectedRoom
-              ? `Message #${selectedRoom.name}`
-              : "Select a channel"
-          }
-          disabled={!selectedRoom}
-          className="flex-1 bg-transparent outline-none text-sm"
-          style={{ color: "var(--text-primary)" }}
-        />
-        <button
-          type="submit"
-          disabled={(!input.trim() && !attachment) || !selectedRoom || isUploading}
-          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 disabled:opacity-30"
-          style={{ background: "var(--accent)", color: "white" }}
-        >
-          <Send size={14} />
-        </button>
+        {/* Attachment preview */}
+        {attachment && (
+          <div
+            className="px-3 pt-3"
+          >
+            <div
+              className="inline-flex flex-col gap-2 rounded-lg border p-2 relative group"
+              style={{
+                background: "var(--surface-4)",
+                borderColor: "var(--border-subtle)",
+                maxWidth: "280px",
+              }}
+            >
+              {renderPreview()}
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs truncate" style={{ color: "var(--text-secondary)", maxWidth: "200px" }}>
+                  {attachment.fileName}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAttachment(null)}
+                  className="shrink-0 w-5 h-5 rounded flex items-center justify-center transition-colors duration-[120ms]"
+                  style={{ color: "var(--text-tertiary)" }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = "var(--danger-tint)";
+                    (e.currentTarget as HTMLElement).style.color = "var(--danger)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = "transparent";
+                    (e.currentTarget as HTMLElement).style.color = "var(--text-tertiary)";
+                  }}
+                  aria-label="Remove attachment"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Input row */}
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          {/* Attach button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!selectedRoom || isUploading}
+            className="w-8 h-8 flex items-center justify-center rounded-lg shrink-0 transition-colors duration-[120ms] ease-out disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ color: "var(--text-tertiary)" }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                (e.currentTarget as HTMLElement).style.background = "var(--surface-4)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-tertiary)";
+            }}
+            aria-label="Attach file"
+          >
+            {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+          </button>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          {/* Text input */}
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={handleInputChange}
+            placeholder={
+              selectedRoom
+                ? `Message #${selectedRoom.name}`
+                : "Select a channel"
+            }
+            disabled={!selectedRoom}
+            className="flex-1 bg-transparent outline-none text-sm disabled:cursor-not-allowed"
+            style={{
+              color: "var(--text-primary)",
+              caretColor: "var(--accent)",
+            }}
+          />
+
+          {/* Send button — accent when has content, ghost when empty */}
+          <button
+            type="submit"
+            disabled={!hasContent || !selectedRoom || isUploading}
+            className="w-8 h-8 flex items-center justify-center rounded-lg shrink-0 transition-colors duration-[120ms] ease-out disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: hasContent ? "var(--accent)" : "transparent",
+              color: hasContent ? "white" : "var(--text-tertiary)",
+            }}
+            aria-label="Send message"
+          >
+            <Send size={14} />
+          </button>
+        </div>
       </div>
     </form>
   );

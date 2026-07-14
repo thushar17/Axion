@@ -1,46 +1,84 @@
 @import "tailwindcss";
 
-/* ─── Axion Design System ─────────────────────────────── */
+/* ─── Zync Design System ──────────────────────────────── */
 :root {
-  /* Backgrounds */
-  --bg-app: #0e0e10;
-  --bg-sidebar: #18181b;
-  --bg-surface: #1f1f23;
-  --bg-surface-hover: #27272b;
-  --bg-input: #18181b;
+  /* ── Main Content Surfaces (dark mode) ── */
+  --surface-app: #0D0E11;
+  --surface-0: #0D0E11;
+  --surface-1: #17181C;
+  --surface-2: #1B1C21;
+  --surface-3: #232429;
+  --surface-4: #2A2B31;
 
-  /* Borders */
-  --border: #2a2a2e;
-  --border-subtle: #232327;
+  /* ── Sidebar Surfaces (dark aubergine) ── */
+  --bg-sidebar: #26082A;
+  --bg-sidebar-rail: #1D0621;
+  --bg-sidebar-hover: #360E3A;
 
-  /* Text */
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-muted: #6b6b70;
+  /* ── Borders ── */
+  --border-subtle: #2C2D33;
+  --border-default: #35363D;
 
-  /* Accent */
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-muted: #312e81;
+  /* ── Text ── */
+  --text-primary: #EDEDEF;
+  --text-secondary: #A0A1A8;
+  --text-tertiary: #6C6D74;
 
-  /* Status */
-  --online: #22c55e;
-  --away: #f59e0b;
-  --offline: #52525b;
-  --error: #ef4444;
-  --error-bg: #2a1215;
+  /* Sidebar Text */
+  --sidebar-text-primary: #EDEDEF;
+  --sidebar-text-secondary: #A0A1A8;
 
-  /* Misc */
-  --background: var(--bg-app);
+  /* ── Accent (indigo-blue) ── */
+  --accent: #5B6EF5;
+  --accent-hover: #4C5CE0;
+  --accent-tint: rgba(91, 110, 245, 0.12);
+  --accent-subtle: #7C8AF7;
+
+  /* ── Semantic ── */
+  --success: #3FB950;
+  --success-tint: rgba(63, 185, 80, 0.12);
+  --warning: #E3A008;
+  --warning-tint: rgba(227, 160, 8, 0.12);
+  --danger: #F05252;
+  --danger-tint: rgba(240, 82, 82, 0.12);
+
+  /* ── Status dots ── */
+  --status-online: #3FB950;
+  --status-idle: #E3A008;
+  --status-dnd: #F05252;
+  --status-offline: #6C6D74;
+
+  /* ── Elevations ── */
+  --elevation-1: 0 1px 2px rgba(0,0,0,0.24);
+  --elevation-2: 0 4px 12px rgba(0,0,0,0.28);
+  --elevation-3: 0 12px 32px rgba(0,0,0,0.36);
+  --elevation-4: 0 20px 48px rgba(0,0,0,0.44);
+
+  /* ── Backwards compat aliases (used in existing component style props) ── */
+  --bg-app: var(--surface-0);
+  --bg-surface: var(--surface-3);
+  --bg-surface-hover: var(--surface-4);
+  --bg-input: var(--surface-3);
+  --border: var(--border-default);
+  --text-muted: var(--text-tertiary);
+  --accent-muted: rgba(91, 110, 245, 0.15);
+  --error: var(--danger);
+  --error-bg: var(--danger-tint);
+  --online: var(--status-online);
+  --away: var(--status-idle);
+  --offline: var(--status-offline);
+
+  /* ── Misc ── */
+  --background: var(--surface-0);
   --foreground: var(--text-primary);
-  --radius: 0.75rem;
+  --radius: 0.5rem; /* 8px = radius-md */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "SF Mono", ui-monospace, monospace;
 }
 
 /* ─── Base ────────────────────────────────────────────── */
@@ -56,33 +94,51 @@ html {
 }
 
 body {
-  background: var(--bg-app);
+  background: var(--surface-0);
   color: var(--text-primary);
-  font-family: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
-  font-size: 15px;
-  line-height: 1.6;
+  font-family: var(--font-inter), ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
 }
+
 
 /* ─── Scrollbar ───────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 999px;
+  background: var(--border-default);
+  border-radius: 9999px;
+  transition: background 120ms ease-out;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--text-tertiary);
 }
 
-/* ─── Keyframes & Animations ─────────────────────────── */
+/* ─── Keyframes & Animations ──────────────────────────── */
 
-/* Message enter */
+/* Message enter — 4px translate per spec */
 @keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-enter {
+  animation: messageSlideIn 0.15s ease-out forwards;
+}
+
+/* Modal scale-fade in — 180ms, 8px translate */
+@keyframes modalIn {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -93,24 +149,8 @@ body {
   }
 }
 
-.message-enter {
-  animation: messageSlideIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-/* Modal scale-fade in */
-@keyframes modalIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
 .modal-enter {
-  animation: modalIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: modalIn 0.18s ease-out forwards;
 }
 
 /* Backdrop fade in */
@@ -123,79 +163,111 @@ body {
   animation: backdropIn 0.18s ease forwards;
 }
 
-/* Status pulse (online) */
+/* Status dot — simple opacity pulse, no box-shadow glow */
 @keyframes statusPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45); }
-  50%       { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
 }
 
 .status-pulse {
-  animation: statusPulse 2s ease-in-out infinite;
+  animation: statusPulse 2.4s ease-in-out infinite;
 }
 
 /* Typing dots */
 @keyframes typingBounce {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-  40%           { transform: translateY(-5px); opacity: 1; }
+  40%           { transform: translateY(-4px); opacity: 1; }
 }
 
 .typing-dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: var(--text-muted);
+  background: var(--text-tertiary);
   animation: typingBounce 1.2s infinite;
 }
 .typing-dot:nth-child(2) { animation-delay: 0.15s; }
 .typing-dot:nth-child(3) { animation-delay: 0.3s; }
 
-/* Room sidebar active state transition */
+/* Room sidebar item hover — 120ms ease-out */
 .room-item {
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
 }
 
 /* Highlight jumped-to message */
 @keyframes pulseHighlight {
   0%   { background-color: transparent; }
-  20%  { background-color: rgba(99, 102, 241, 0.18); }
+  20%  { background-color: rgba(91, 110, 245, 0.12); }
   100% { background-color: transparent; }
 }
 
 .highlight-message {
   animation: pulseHighlight 2s ease-out;
-  border-radius: 0.75rem;
+  border-radius: 8px;
 }
 
-/* ─── Utility ─────────────────────────────────────────── */
+/* Slide in from right (for panels) */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* ─── Input utility ───────────────────────────────────── */
 .axion-input {
   width: 100%;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.625rem 0.875rem;
+  height: 36px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 0 12px;
   color: var(--text-primary);
-  font-size: 0.9375rem;
+  font-size: 14px;
+  font-family: inherit;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out;
   caret-color: var(--accent);
 }
 
 .axion-input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-tertiary);
 }
 
 .axion-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.axion-input:focus-visible {
+  outline: 2px solid rgba(91, 110, 245, 0.6);
+  outline-offset: 2px;
 }
 
 .axion-input:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Glow shadow for primary button */
-.btn-glow:hover {
-  box-shadow: 0 0 18px rgba(99, 102, 241, 0.45);
+/* ─── Focus ring utility ──────────────────────────────── */
+.zync-focus:focus-visible {
+  outline: 2px solid rgba(91, 110, 245, 0.6);
+  outline-offset: 2px;
+}
+
+/* ─── Reduced motion ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .message-enter,
+  .modal-enter,
+  .backdrop-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }

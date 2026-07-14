@@ -49,20 +49,24 @@ function DropdownItem({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-3.5 py-2 text-sm flex items-center gap-2.5 transition-all"
+      className="w-full text-left flex items-center gap-2.5 transition-colors duration-[120ms] ease-out"
       style={{
-        color: danger ? "var(--error)" : "var(--text-secondary)",
+        height: "32px",
+        padding: "0 12px",
+        color: danger ? "var(--danger)" : "var(--text-secondary)",
+        fontSize: "13px",
+        borderRadius: "4px",
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.background = danger
-          ? "var(--error-bg)"
-          : "var(--bg-surface-hover)";
+          ? "var(--danger-tint)"
+          : "var(--surface-4)";
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.background = "transparent";
       }}
     >
-      <span style={{ color: danger ? "var(--error)" : "var(--text-muted)" }}>
+      <span style={{ color: danger ? "var(--danger)" : "var(--text-tertiary)" }}>
         {icon}
       </span>
       {label}
@@ -110,25 +114,34 @@ export default function ChatHeader({
 
   return (
     <header
-      className="h-14 flex items-center justify-between px-4 border-b shrink-0"
+      className="flex items-center justify-between px-4 border-b shrink-0"
       style={{
-        background: "var(--bg-sidebar)",
+        height: "56px",
+        background: "var(--surface-1)",
         borderColor: "var(--border-subtle)",
       }}
     >
       {/* Left: hamburger (mobile) + room name */}
       <div className="flex items-center gap-3 min-w-0">
+        {/* Mobile hamburger */}
         <button
-          className="md:hidden p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
-          style={{ color: "var(--text-muted)" }}
+          className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg transition-colors duration-[120ms] ease-out"
+          style={{ color: "var(--text-tertiary)" }}
           onClick={() => setMobileSidebarOpen(true)}
+          aria-label="Open sidebar"
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "var(--surface-3)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "transparent";
+          }}
         >
           <Menu size={18} />
         </button>
 
         {selectedRoom ? (
           <div className="flex items-center gap-2 min-w-0">
-            <span style={{ color: "var(--text-muted)" }}>
+            <span style={{ color: "var(--text-tertiary)" }}>
               {selectedRoom.type === "private" ? (
                 <Lock size={15} />
               ) : selectedRoom.type === "dm" ? (
@@ -155,7 +168,7 @@ export default function ChatHeader({
                 />
                 <button
                   type="submit"
-                  className="text-xs px-2.5 py-1 rounded-lg font-semibold text-white"
+                  className="h-7 px-3 rounded-md text-xs font-semibold text-white transition-colors duration-[120ms]"
                   style={{ background: "var(--accent)" }}
                 >
                   Save
@@ -166,9 +179,9 @@ export default function ChatHeader({
                     setIsRenaming(false);
                     setRenameInput("");
                   }}
-                  className="text-xs px-2.5 py-1 rounded-lg"
+                  className="h-7 px-3 rounded-md text-xs font-medium transition-colors duration-[120ms]"
                   style={{
-                    background: "var(--bg-surface-hover)",
+                    background: "var(--surface-4)",
                     color: "var(--text-secondary)",
                   }}
                 >
@@ -177,15 +190,15 @@ export default function ChatHeader({
               </form>
             ) : (
               <h1
-                className="text-sm font-semibold tracking-tight truncate"
-                style={{ color: "var(--text-primary)" }}
+                className="text-sm font-semibold truncate"
+                style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}
               >
                 {roomName}
               </h1>
             )}
             <span
               className="text-xs shrink-0"
-              style={{ color: "var(--text-muted)" }}
+              style={{ color: "var(--text-tertiary)" }}
             >
               {members.length} member{members.length !== 1 ? "s" : ""}
             </span>
@@ -193,7 +206,7 @@ export default function ChatHeader({
         ) : (
           <h1
             className="text-sm font-semibold"
-            style={{ color: "var(--text-muted)" }}
+            style={{ color: "var(--text-tertiary)" }}
           >
             Select a channel
           </h1>
@@ -203,30 +216,41 @@ export default function ChatHeader({
       {/* Right actions */}
       {selectedRoom && (
         <div className="flex items-center gap-1 shrink-0">
-          {/* Search Box */}
-          <div className="relative flex items-center mr-2 hidden sm:flex">
-            <Search size={14} className="absolute left-2.5" style={{ color: "var(--text-muted)" }} />
+          {/* Search */}
+          <div className="relative flex items-center mr-1 hidden sm:flex">
+            <Search size={14} className="absolute left-2.5" style={{ color: "var(--text-tertiary)" }} />
             <input
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 text-sm rounded-lg border transition-all duration-300 w-32 focus:w-48 md:w-40 md:focus:w-64 outline-none"
+              className="pl-8 pr-3 text-sm rounded-lg border transition-all duration-200 w-32 focus:w-48 md:w-36 md:focus:w-60 outline-none"
               style={{
-                background: "var(--bg-app)",
+                height: "32px",
+                background: "var(--surface-0)",
                 borderColor: "var(--border-subtle)",
                 color: "var(--text-primary)",
+              }}
+              onFocus={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+              }}
+              onBlur={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--border-subtle)";
               }}
             />
             {searchResults.length > 0 && (
               <div
-                className="absolute top-full right-0 mt-2 w-72 max-h-96 overflow-y-auto rounded-xl border shadow-2xl z-50"
+                className="absolute top-full right-0 mt-2 w-72 max-h-80 overflow-y-auto rounded-lg border z-50"
                 style={{
-                  background: "var(--bg-surface)",
-                  borderColor: "var(--border)",
+                  background: "var(--surface-3)",
+                  borderColor: "var(--border-default)",
+                  boxShadow: "var(--elevation-2)",
                 }}
               >
-                <div className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider" style={{ borderColor: "var(--border-subtle)", color: "var(--text-muted)" }}>
+                <div
+                  className="px-3 py-2 border-b text-xs font-semibold uppercase tracking-[0.04em]"
+                  style={{ borderColor: "var(--border-subtle)", color: "var(--text-tertiary)" }}
+                >
                   Search Results
                 </div>
                 {searchResults.map((message) => (
@@ -237,8 +261,14 @@ export default function ChatHeader({
                       setSearchResults([]);
                       setSearchQuery("");
                     }}
-                    className="w-full text-left px-3 py-2.5 transition-colors border-b last:border-0 hover:bg-[var(--bg-surface-hover)]"
+                    className="w-full text-left px-3 py-2.5 border-b last:border-0 transition-colors duration-[120ms]"
                     style={{ borderColor: "var(--border-subtle)" }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "var(--surface-4)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "transparent";
+                    }}
                   >
                     <div className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
                       {message.content}
@@ -252,16 +282,19 @@ export default function ChatHeader({
           {/* Starred toggle */}
           <button
             onClick={() => setShowStarredPanel((v) => !v)}
-            className="p-2 rounded-lg transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors duration-[120ms] ease-out"
             style={{
-              background: showStarredPanel
-                ? "var(--accent-muted)"
-                : "transparent",
-              color: showStarredPanel
-                ? "var(--accent-hover)"
-                : "var(--text-muted)",
+              background: showStarredPanel ? "var(--surface-3)" : "transparent",
+              color: showStarredPanel ? "var(--accent-subtle)" : "var(--text-tertiary)",
             }}
             title="Starred messages"
+            aria-label="Toggle starred messages"
+            onMouseEnter={(e) => {
+              if (!showStarredPanel) (e.currentTarget as HTMLElement).style.background = "var(--surface-3)";
+            }}
+            onMouseLeave={(e) => {
+              if (!showStarredPanel) (e.currentTarget as HTMLElement).style.background = "transparent";
+            }}
           >
             <Star size={16} fill={showStarredPanel ? "currentColor" : "none"} />
           </button>
@@ -269,16 +302,19 @@ export default function ChatHeader({
           {/* Members toggle */}
           <button
             onClick={() => setShowMembersPanel((v) => !v)}
-            className="p-2 rounded-lg transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors duration-[120ms] ease-out"
             style={{
-              background: showMembersPanel
-                ? "var(--accent-muted)"
-                : "transparent",
-              color: showMembersPanel
-                ? "var(--accent-hover)"
-                : "var(--text-muted)",
+              background: showMembersPanel ? "var(--surface-3)" : "transparent",
+              color: showMembersPanel ? "var(--accent-subtle)" : "var(--text-tertiary)",
             }}
             title="Members"
+            aria-label="Toggle members panel"
+            onMouseEnter={(e) => {
+              if (!showMembersPanel) (e.currentTarget as HTMLElement).style.background = "var(--surface-3)";
+            }}
+            onMouseLeave={(e) => {
+              if (!showMembersPanel) (e.currentTarget as HTMLElement).style.background = "transparent";
+            }}
           >
             <Users size={16} />
           </button>
@@ -290,9 +326,19 @@ export default function ChatHeader({
                 e.stopPropagation();
                 setShowRoomSettings((v) => !v);
               }}
-              className="p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-all"
-              style={{ color: "var(--text-muted)" }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors duration-[120ms] ease-out"
+              style={{
+                background: showRoomSettings ? "var(--surface-3)" : "transparent",
+                color: "var(--text-tertiary)",
+              }}
               title="Room settings"
+              aria-label="Room settings"
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--surface-3)";
+              }}
+              onMouseLeave={(e) => {
+                if (!showRoomSettings) (e.currentTarget as HTMLElement).style.background = "transparent";
+              }}
             >
               <MoreHorizontal size={16} />
             </button>
@@ -300,10 +346,14 @@ export default function ChatHeader({
             {showRoomSettings && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 mt-1 w-52 rounded-xl border py-1.5 z-50 shadow-2xl"
+                className="absolute right-0 mt-1 rounded-lg border z-50"
                 style={{
-                  background: "var(--bg-surface)",
-                  borderColor: "var(--border)",
+                  background: "var(--surface-3)",
+                  borderColor: "var(--border-default)",
+                  boxShadow: "var(--elevation-2)",
+                  minWidth: "200px",
+                  padding: "4px",
+                  top: "calc(100% + 4px)",
                 }}
               >
                 {/* Mute */}
@@ -358,8 +408,12 @@ export default function ChatHeader({
                 )}
 
                 <div
-                  className="my-1.5 border-t"
-                  style={{ borderColor: "var(--border-subtle)" }}
+                  className="my-1"
+                  style={{
+                    height: "1px",
+                    background: "var(--border-subtle)",
+                    margin: "4px 8px",
+                  }}
                 />
 
                 {/* Leave */}

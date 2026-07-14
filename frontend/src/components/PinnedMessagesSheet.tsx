@@ -48,7 +48,7 @@ export function PinnedMessagesSheet({
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end backdrop-enter"
-      style={{ background: "rgba(0,0,0,0.4)" }}
+      style={{ background: "rgba(0,0,0,0.5)" }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onOpenChange(false);
       }}
@@ -57,23 +57,36 @@ export function PinnedMessagesSheet({
     >
       <div
         ref={panelRef}
-        className="w-full max-w-md h-full flex flex-col bg-[var(--bg-surface)] border-l border-[var(--border)] shadow-2xl transition-transform duration-300 ease-out transform translate-x-0"
+        className="w-full max-w-sm h-full flex flex-col border-l"
         onClick={(e) => e.stopPropagation()}
         style={{
-          animation: "slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+          background: "var(--surface-1)",
+          borderColor: "var(--border-subtle)",
+          boxShadow: "var(--elevation-3)",
+          animation: "slideInRight 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-0 border-b shrink-0"
+          style={{
+            borderColor: "var(--border-subtle)",
+            height: "56px",
+          }}
+        >
           <div className="flex items-center gap-2">
-            <Pin size={18} style={{ color: "var(--accent)" }} />
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+            <Pin size={16} style={{ color: "var(--accent)" }} />
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}
+            >
               Pinned Messages
             </h2>
             <span
-              className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full"
+              className="ml-1 text-xs font-medium px-2 py-0.5 rounded-full"
               style={{
-                backgroundColor: "rgba(99,102,241,0.1)",
-                color: "var(--accent)",
+                background: "var(--accent-tint)",
+                color: "var(--accent-subtle)",
               }}
             >
               {pinnedMessages.length}
@@ -81,61 +94,77 @@ export function PinnedMessagesSheet({
           </div>
           <button
             onClick={() => onOpenChange(false)}
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150"
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors duration-[120ms] ease-out"
+            style={{ color: "var(--text-tertiary)" }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--surface-3)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-tertiary)";
+            }}
             aria-label="Close panel"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {pinnedMessages.length === 0 ? (
-            <div className="text-center py-10 flex flex-col items-center">
-              <Pin size={32} style={{ color: "var(--text-muted)", marginBottom: 12, opacity: 0.5 }} />
-              <p style={{ color: "var(--text-muted)" }}>No pinned messages yet</p>
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+              <Pin
+                size={32}
+                style={{ color: "var(--text-tertiary)", opacity: 0.4 }}
+              />
+              <p
+                className="text-sm"
+                style={{ color: "var(--text-tertiary)" }}
+              >
+                No pinned messages yet
+              </p>
             </div>
           ) : (
             pinnedMessages.map((message) => (
               <div
                 key={message._id}
-                className="flex flex-col gap-3 p-4 rounded-xl border"
+                className="flex flex-col gap-3 p-3 rounded-lg border"
                 style={{
-                  backgroundColor: "rgba(99,102,241,0.03)",
-                  borderColor: "rgba(99,102,241,0.12)",
+                  background: "var(--surface-3)",
+                  borderColor: "var(--border-subtle)",
                 }}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <p
-                    className="text-sm leading-relaxed line-clamp-3"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    {message.content}
-                  </p>
-                </div>
-                
-                <div className="flex items-center justify-between mt-1">
+                <p
+                  className="text-sm leading-relaxed line-clamp-3"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {message.content}
+                </p>
+
+                <div className="flex items-center justify-between">
                   <span
                     className="text-xs"
-                    style={{ color: "var(--text-muted)" }}
+                    style={{ color: "var(--text-tertiary)" }}
                   >
                     {message.pinned?.pinnedAt
                       ? new Date(message.pinned.pinnedAt).toLocaleString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit'
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
                         })
                       : ""}
                   </span>
-                  
+
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => {
                         onJump(message._id);
                         onOpenChange(false);
                       }}
-                      className="text-xs font-semibold hover:underline"
-                      style={{ color: "var(--accent-hover)" }}
+                      className="text-xs font-semibold transition-opacity duration-[120ms] hover:opacity-70"
+                      style={{ color: "var(--accent-subtle)" }}
                     >
                       Jump
                     </button>
@@ -143,8 +172,8 @@ export function PinnedMessagesSheet({
                     {isAdmin && (
                       <button
                         onClick={() => onUnpin(message._id)}
-                        className="text-xs hover:underline"
-                        style={{ color: "var(--text-muted)" }}
+                        className="text-xs transition-opacity duration-[120ms] hover:opacity-70"
+                        style={{ color: "var(--text-tertiary)" }}
                       >
                         Unpin
                       </button>
@@ -156,12 +185,6 @@ export function PinnedMessagesSheet({
           )}
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes slideInRight {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-      `}} />
     </div>
   );
 }

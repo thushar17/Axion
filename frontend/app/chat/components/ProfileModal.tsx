@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { X, Upload, Loader2, Camera } from "lucide-react";
+import { X, Loader2, Camera } from "lucide-react";
 import { updateProfile } from "../services/auth.service";
 import { Avatar } from "@/src/components/Avatar";
 
@@ -69,62 +69,89 @@ export function ProfileModal({ open, onClose, user, setUser }: ProfileModalProps
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+      {/* Backdrop — no blur (spec: no glassmorphism) */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0"
+        style={{ background: "rgba(0,0,0,0.5)" }}
         onClick={!loading ? onClose : undefined}
       />
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-md rounded-2xl shadow-xl overflow-hidden transform transition-all"
+        className="relative w-full max-w-md rounded-xl border overflow-hidden"
         style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
+          background: "var(--surface-3)",
+          borderColor: "var(--border-default)",
+          boxShadow: "var(--elevation-3)",
         }}
       >
+        {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4 border-b"
           style={{ borderColor: "var(--border-subtle)" }}
         >
           <h2
-            className="text-lg font-semibold"
-            style={{ color: "var(--text-primary)" }}
+            className="text-base font-semibold"
+            style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}
           >
             Edit Profile
           </h2>
           <button
             onClick={!loading ? onClose : undefined}
-            className="p-1 rounded-md transition-colors hover:bg-[var(--bg-surface-hover)]"
-            style={{ color: "var(--text-muted)" }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors duration-[120ms] ease-out"
+            style={{ color: "var(--text-tertiary)" }}
             disabled={loading}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                (e.currentTarget as HTMLElement).style.background = "var(--surface-4)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-tertiary)";
+            }}
+            aria-label="Close"
           >
-            <X size={20} />
+            <X size={16} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+            <div
+              className="p-3 rounded-lg text-sm border"
+              style={{
+                background: "var(--danger-tint)",
+                borderColor: "rgba(240,82,82,0.25)",
+                color: "var(--danger)",
+              }}
+            >
               {error}
             </div>
           )}
 
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative group">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-4" style={{ borderColor: "var(--bg-surface)" }}>
+          {/* Avatar picker */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative group cursor-pointer">
+              <div
+                className="w-24 h-24 rounded-full overflow-hidden border-4"
+                style={{ borderColor: "var(--surface-1)" }}
+              >
                 {avatarPreview ? (
                   <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
-                  <Avatar username={user?.username || "?"} avatarUrl={user?.avatar} size="lg" />
+                  <Avatar username={user?.username || "?"} avatarUrl={user?.avatar} size="xl" />
                 )}
               </div>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                className="absolute inset-0 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-[120ms] cursor-pointer"
+                style={{ background: "rgba(0,0,0,0.45)" }}
+                aria-label="Change avatar"
               >
-                <Camera size={24} className="text-white" />
+                <Camera size={22} className="text-white" />
               </button>
               <input
                 type="file"
@@ -134,12 +161,13 @@ export function ProfileModal({ open, onClose, user, setUser }: ProfileModalProps
                 className="hidden"
               />
             </div>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
               JPG, PNG or WebP. Max 5MB.
             </p>
           </div>
 
-          <div className="space-y-2">
+          {/* Username input */}
+          <div className="space-y-1.5">
             <label
               className="text-sm font-medium"
               style={{ color: "var(--text-secondary)" }}
@@ -151,25 +179,27 @@ export function ProfileModal({ open, onClose, user, setUser }: ProfileModalProps
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
-              className="w-full px-3 py-2 rounded-lg text-sm transition-colors border"
-              style={{
-                background: "var(--bg-app)",
-                borderColor: "var(--border-subtle)",
-                color: "var(--text-primary)",
-              }}
+              className="axion-input"
               placeholder="Enter your username"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          {/* Actions */}
+          <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-colors border hover:bg-[var(--bg-surface-hover)]"
+              className="h-9 px-4 rounded-lg text-sm font-medium transition-colors duration-[120ms] ease-out disabled:opacity-40 border"
               style={{
-                borderColor: "var(--border-subtle)",
+                borderColor: "var(--border-default)",
                 color: "var(--text-primary)",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--surface-4)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
               }}
             >
               Cancel
@@ -177,13 +207,17 @@ export function ProfileModal({ open, onClose, user, setUser }: ProfileModalProps
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 text-white"
-              style={{
-                background: loading ? "var(--accent-muted)" : "var(--accent)",
+              className="h-9 px-4 rounded-lg text-sm font-semibold text-white transition-colors duration-[120ms] ease-out disabled:opacity-40 flex items-center gap-2"
+              style={{ background: "var(--accent)" }}
+              onMouseEnter={(e) => {
+                if (!loading) (e.currentTarget as HTMLElement).style.background = "var(--accent-hover)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--accent)";
               }}
             >
-              {loading && <Loader2 size={16} className="animate-spin" />}
-              {loading ? "Saving..." : "Save Changes"}
+              {loading && <Loader2 size={14} className="animate-spin" />}
+              {loading ? "Saving…" : "Save Changes"}
             </button>
           </div>
         </form>

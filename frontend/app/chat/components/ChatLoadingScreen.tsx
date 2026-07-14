@@ -3,8 +3,8 @@ import { Zap } from "lucide-react";
 export function ChatLoadingScreen() {
   return (
     <div
-      className="h-screen flex flex-col items-center justify-center gap-4"
-      style={{ background: "var(--bg-app)" }}
+      className="h-screen flex flex-col items-center justify-center gap-5"
+      style={{ background: "var(--surface-0)" }}
     >
       <div
         className="w-12 h-12 rounded-2xl flex items-center justify-center"
@@ -21,7 +21,7 @@ export function ChatLoadingScreen() {
           cx="16"
           cy="16"
           r="12"
-          stroke="var(--border)"
+          stroke="var(--border-default)"
           strokeWidth="3"
         />
         <path
@@ -31,7 +31,7 @@ export function ChatLoadingScreen() {
           strokeLinecap="round"
         />
       </svg>
-      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+      <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
         Connecting…
       </p>
     </div>

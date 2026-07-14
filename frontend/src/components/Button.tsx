@@ -12,26 +12,30 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
+// Zync spec button variants — no btn-glow on primary
 const variantStyles: Record<Variant, string> = {
   primary:
-    "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-semibold " +
-    "btn-glow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+    "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium " +
+    "transition-colors duration-[120ms] ease-out disabled:opacity-40 disabled:cursor-not-allowed",
   secondary:
-    "bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] " +
-    "border border-[var(--border)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+    "bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text-primary)] font-medium " +
+    "border border-[var(--border-default)] transition-colors duration-[120ms] ease-out " +
+    "disabled:opacity-40 disabled:cursor-not-allowed",
   ghost:
-    "bg-transparent hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] " +
-    "hover:text-[var(--text-primary)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+    "bg-transparent hover:bg-[var(--surface-3)] text-[var(--text-secondary)] " +
+    "hover:text-[var(--text-primary)] transition-colors duration-[120ms] ease-out " +
+    "disabled:opacity-40 disabled:cursor-not-allowed",
   danger:
-    "bg-transparent hover:bg-[var(--error-bg)] text-[var(--error)] " +
-    "border border-transparent hover:border-[var(--error)] transition-all duration-200 " +
-    "disabled:opacity-50 disabled:cursor-not-allowed",
+    "bg-[var(--danger)] hover:opacity-90 text-white font-medium " +
+    "transition-all duration-[120ms] ease-out " +
+    "disabled:opacity-40 disabled:cursor-not-allowed",
 };
 
+// Heights: sm=28px, md=36px, lg=40px via explicit h + px
 const sizeStyles: Record<Size, string> = {
-  sm:  "px-3 py-1.5 text-xs rounded-lg gap-1.5",
-  md:  "px-4 py-2.5 text-sm rounded-xl gap-2",
-  lg:  "px-5 py-3 text-base rounded-xl gap-2.5",
+  sm: "h-7 px-3 text-xs rounded-[6px] gap-1.5",
+  md: "h-9 px-4 text-sm rounded-[8px] gap-2",
+  lg: "h-10 px-4 text-sm rounded-[8px] gap-2",
 };
 
 export function Button({

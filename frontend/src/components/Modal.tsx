@@ -51,7 +51,7 @@ export function Modal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-enter"
-      style={{ background: "rgba(0,0,0,0.65)" }}
+      style={{ background: "rgba(0,0,0,0.5)" }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -60,21 +60,42 @@ export function Modal({
     >
       <div
         ref={panelRef}
-        className={`relative w-full ${width} rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-2xl modal-enter`}
+        className={`relative w-full ${width} rounded-xl border modal-enter`}
+        style={{
+          background: "var(--surface-3)",
+          borderColor: "var(--border-default)",
+          boxShadow: "var(--elevation-3)",
+          padding: "24px",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {(title || !hideClose) && (
           <div className="flex items-center justify-between mb-5">
             {title && (
-              <h2 className="text-base font-semibold text-[var(--text-primary)] tracking-tight">
+              <h2
+                className="text-base font-semibold tracking-tight"
+                style={{
+                  color: "var(--text-primary)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
                 {title}
               </h2>
             )}
             {!hideClose && (
               <button
                 onClick={onClose}
-                className="ml-auto p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150"
+                className="ml-auto p-1.5 rounded-lg transition-colors duration-[120ms] ease-out"
+                style={{ color: "var(--text-tertiary)" }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--surface-4)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-tertiary)";
+                }}
                 aria-label="Close modal"
               >
                 <X size={16} />
@@ -114,26 +135,41 @@ export function ConfirmModal({
   return (
     <Modal open={open} onClose={onClose} title={title} width="max-w-sm">
       {description && (
-        <p className="text-sm text-[var(--text-secondary)] mb-5 leading-relaxed">
+        <p
+          className="text-sm mb-5 leading-relaxed"
+          style={{ color: "var(--text-secondary)" }}
+        >
           {description}
         </p>
       )}
-      <div className="flex gap-2 justify-end">
+      <div className="flex gap-3 justify-end">
         <button
           onClick={onClose}
           disabled={loading}
-          className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition disabled:opacity-50"
+          className="h-9 px-4 rounded-lg text-sm font-medium transition-colors duration-[120ms] ease-out disabled:opacity-40"
+          style={{ color: "var(--text-secondary)" }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "var(--surface-4)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "transparent";
+          }}
         >
           Cancel
         </button>
         <button
           onClick={onConfirm}
           disabled={loading}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-50 ${
-            danger
-              ? "bg-[var(--error)] text-white hover:opacity-90"
-              : "bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]"
-          }`}
+          className="h-9 px-4 rounded-lg text-sm font-medium text-white transition-colors duration-[120ms] ease-out disabled:opacity-40"
+          style={{
+            background: danger ? "var(--danger)" : "var(--accent)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.opacity = "0.9";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.opacity = "1";
+          }}
         >
           {loading ? "Loading…" : confirmLabel}
         </button>

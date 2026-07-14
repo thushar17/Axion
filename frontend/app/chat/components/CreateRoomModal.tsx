@@ -43,6 +43,7 @@ export function CreateRoomModal({
             required
           />
         </div>
+
         <div>
           <label
             className="block text-sm font-medium mb-1.5"
@@ -56,18 +57,13 @@ export function CreateRoomModal({
                 type="button"
                 key={t}
                 onClick={() => setRoomType(t)}
-                className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all"
+                className="flex-1 flex items-center gap-2 px-3 rounded-lg text-sm transition-colors duration-[120ms] ease-out border"
                 style={{
-                  background:
-                    roomType === t
-                      ? "var(--accent-muted)"
-                      : "var(--bg-surface-hover)",
-                  borderColor:
-                    roomType === t ? "var(--accent)" : "var(--border)",
-                  color:
-                    roomType === t
-                      ? "var(--accent-hover)"
-                      : "var(--text-secondary)",
+                  height: "36px",
+                  background: roomType === t ? "var(--accent-tint)" : "var(--surface-4)",
+                  borderColor: roomType === t ? "var(--accent)" : "var(--border-subtle)",
+                  color: roomType === t ? "var(--accent-subtle)" : "var(--text-secondary)",
+                  fontWeight: roomType === t ? 500 : 400,
                 }}
               >
                 {t === "public" ? <Hash size={13} /> : <Lock size={13} />}
@@ -76,19 +72,39 @@ export function CreateRoomModal({
             ))}
           </div>
         </div>
-        <div className="flex gap-2 pt-2">
+
+        <div className="flex gap-3 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-sm transition-all hover:bg-[var(--bg-surface-hover)]"
-            style={{ color: "var(--text-secondary)" }}
+            className="flex-1 rounded-lg text-sm transition-colors duration-[120ms] ease-out border"
+            style={{
+              height: "36px",
+              color: "var(--text-secondary)",
+              borderColor: "var(--border-default)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--surface-4)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+            }}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all btn-glow"
-            style={{ background: "var(--accent)" }}
+            className="flex-1 rounded-lg text-sm font-semibold text-white transition-colors duration-[120ms] ease-out"
+            style={{
+              height: "36px",
+              background: "var(--accent)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--accent-hover)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--accent)";
+            }}
           >
             Create channel
           </button>

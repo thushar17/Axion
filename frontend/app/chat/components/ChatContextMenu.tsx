@@ -34,20 +34,23 @@ function ContextItem({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-3.5 py-2 text-sm flex items-center gap-2.5 transition-all"
+      className="w-full text-left flex items-center gap-2.5 transition-colors duration-[120ms] ease-out rounded"
       style={{
-        color: danger ? "var(--error)" : "var(--text-primary)",
+        height: "32px",
+        padding: "0 12px",
+        color: danger ? "var(--danger)" : "var(--text-primary)",
+        fontSize: "13px",
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.background = danger
-          ? "var(--error-bg)"
-          : "var(--bg-surface-hover)";
+          ? "var(--danger-tint)"
+          : "var(--surface-4)";
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.background = "transparent";
       }}
     >
-      <span style={{ color: danger ? "var(--error)" : "var(--text-muted)" }}>
+      <span style={{ color: danger ? "var(--danger)" : "var(--text-tertiary)" }}>
         {icon}
       </span>
       {label}
@@ -75,20 +78,22 @@ export default function ChatContextMenu({
 
   return (
     <div
-      className="fixed rounded-xl py-1.5 w-48 z-[9999] shadow-2xl"
+      className="fixed z-[9999] rounded-lg border"
       style={{
         top: contextMenu.y,
         left: contextMenu.x,
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border)",
-        borderRadius: "12px",
+        background: "var(--surface-3)",
+        borderColor: "var(--border-default)",
+        boxShadow: "var(--elevation-2)",
+        minWidth: "200px",
+        padding: "4px",
       }}
       onClick={(e) => e.stopPropagation()}
     >
       {!contextMenu.message.isDeleted && (
         <>
           <ContextItem
-            icon={<Reply size={13} />}
+            icon={<Reply size={14} />}
             label="Reply"
             onClick={() => {
               setReplyingTo(contextMenu.message);
@@ -96,7 +101,7 @@ export default function ChatContextMenu({
             }}
           />
           <ContextItem
-            icon={<Copy size={13} />}
+            icon={<Copy size={14} />}
             label="Copy Message"
             onClick={() => {
               navigator.clipboard.writeText(contextMenu.message.content);
@@ -105,23 +110,33 @@ export default function ChatContextMenu({
             }}
           />
 
+          {/* Reaction picker */}
           <div
-            className="px-3 py-2 border-b"
-            style={{ borderColor: "var(--border-subtle)" }}
+            className="mx-1 my-1 px-2 py-2 rounded"
+            style={{
+              borderTop: "1px solid var(--border-subtle)",
+              borderBottom: "1px solid var(--border-subtle)",
+              margin: "4px 0",
+            }}
           >
             <p
-              className="text-xs mb-2"
-              style={{ color: "var(--text-muted)" }}
+              className="text-xs mb-1.5 font-medium"
+              style={{ color: "var(--text-tertiary)" }}
             >
               React
             </p>
-
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1 flex-wrap">
               {emojis.map((emoji) => (
                 <button
                   key={emoji}
                   onClick={() => handleReaction(contextMenu.message._id, emoji)}
-                  className="w-8 h-8 rounded-lg hover:bg-[var(--bg-surface-hover)] transition"
+                  className="w-8 h-8 flex items-center justify-center rounded-md text-base transition-colors duration-[120ms]"
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = "var(--surface-4)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = "transparent";
+                  }}
                 >
                   {emoji}
                 </button>
@@ -132,15 +147,15 @@ export default function ChatContextMenu({
           <ContextItem
             icon={
               <Star
-                size={13}
+                size={14}
                 fill={
                   starredMessageIds.includes(contextMenu.message._id)
-                    ? "#f59e0b"
+                    ? "var(--warning)"
                     : "none"
                 }
                 stroke={
                   starredMessageIds.includes(contextMenu.message._id)
-                    ? "#f59e0b"
+                    ? "var(--warning)"
                     : "currentColor"
                 }
               />
@@ -157,7 +172,7 @@ export default function ChatContextMenu({
           />
           {isAdmin && (
             <ContextItem
-              icon={<Pin size={13} />}
+              icon={<Pin size={14} />}
               label={
                 contextMenu.message.pinned?.isPinned ? "Unpin" : "Pin"
               }
@@ -171,11 +186,14 @@ export default function ChatContextMenu({
           {getSenderId(contextMenu.message.sender) === String(user?.id || user?._id) && (
             <>
               <div
-                className="my-1 border-t"
-                style={{ borderColor: "var(--border-subtle)" }}
+                style={{
+                  height: "1px",
+                  background: "var(--border-subtle)",
+                  margin: "4px 0",
+                }}
               />
               <ContextItem
-                icon={<Pencil size={13} />}
+                icon={<Pencil size={14} />}
                 label="Edit"
                 onClick={() => {
                   setEditingMessageId(contextMenu.message._id);
@@ -185,7 +203,7 @@ export default function ChatContextMenu({
                 }}
               />
               <ContextItem
-                icon={<Trash2 size={13} />}
+                icon={<Trash2 size={14} />}
                 label="Delete"
                 danger
                 onClick={() => {
@@ -199,8 +217,8 @@ export default function ChatContextMenu({
       )}
       {contextMenu.message.isDeleted && (
         <div
-          className="px-4 py-2 text-xs italic"
-          style={{ color: "var(--text-muted)" }}
+          className="px-3 py-2 text-xs italic"
+          style={{ color: "var(--text-tertiary)" }}
         >
           No actions available
         </div>
