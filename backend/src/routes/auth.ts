@@ -24,7 +24,7 @@ const getGoogleOAuthClient = () => {
 };
 
 const getCookieOptions = (req?: Request) => {
-    const isHttps = req ? (req.secure || req.headers['x-forwarded-proto'] === 'https') : false;
+    const isHttps = req ? (req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production') : process.env.NODE_ENV === 'production';
     return {
         httpOnly: true,
         sameSite: (isHttps ? 'none' : 'lax') as 'none' | 'lax',

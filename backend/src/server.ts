@@ -13,6 +13,7 @@ import { connectRedis } from './lib/redis.js';
 
 dotenv.config();
 const app = express()
+app.set('trust proxy', 1);
 const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000'
 const allowedOrigins = [
   'http://localhost:3000',
