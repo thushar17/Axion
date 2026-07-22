@@ -90,7 +90,7 @@ export default function LandingPage() {
                 src="/mockup-hero.png" 
                 alt="Zync interface mockup"
                 width={800}
-                height={500}
+                height={800}
                 className="w-full h-auto block"
                 priority
               />
