@@ -12,8 +12,200 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 const AuthRouter = Router()
+
+const getGoogleOAuthClient = () => {
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:8000/auth/google/callback';
+    return new OAuth2Client(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        redirectUri
+    );
+};
+
+const getCookieOptions = (req?: Request) => {
+    const isHttps = req ? (req.secure || req.headers['x-forwarded-proto'] === 'https') : false;
+    return {
+        httpOnly: true,
+        sameSite: (isHttps ? 'none' : 'lax') as 'none' | 'lax',
+        secure: isHttps,
+        maxAge: 24 * 60 * 60 * 1000,
+    };
+};
+
+AuthRouter.get("/google", (req: Request, res: Response) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+        return res.status(500).json({ success: false, message: "Google OAuth credentials not configured on server" });
+    }
+
+    const oAuth2Client = getGoogleOAuthClient();
+    const authorizeUrl = oAuth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: [
+            'https://www.googleapis.com/auth/userinfo.profile',
+            'https://www.googleapis.com/auth/userinfo.email',
+        ],
+        prompt: 'select_account'
+    });
+
+    return res.redirect(authorizeUrl);
+});
+
+AuthRouter.get("/google/callback", async (req: Request, res: Response) => {
+    const { code, error } = req.query;
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:3000";
+
+    if (error || !code) {
+        console.error("Google auth error parameter:", error);
+        return res.redirect(`${clientUrl}/auth/login?error=${encodeURIComponent(String(error || "Authorization failed"))}`);
+    }
+
+    try {
+        const oAuth2Client = getGoogleOAuthClient();
+        const { tokens } = await oAuth2Client.getToken(String(code));
+        oAuth2Client.setCredentials(tokens);
+
+        let email: string | undefined;
+        let name: string | undefined;
+        let picture: string | undefined;
+        let googleId: string | undefined;
+
+        if (tokens.id_token) {
+            try {
+                const clientId = process.env.GOOGLE_CLIENT_ID;
+                const ticket = await oAuth2Client.verifyIdToken({
+                    idToken: tokens.id_token,
+                    ...(clientId ? { audience: clientId } : {}),
+                });
+                const payload = ticket.getPayload();
+                if (payload) {
+                    email = payload.email;
+                    name = payload.name;
+                    picture = payload.picture;
+                    googleId = payload.sub;
+                }
+            } catch (err) {
+                console.warn("Could not verify id_token from Google callback tokens, trying userinfo API:", err);
+            }
+        }
+
+        if (!email) {
+            const userinfo = await oAuth2Client.request({
+                url: 'https://www.googleapis.com/oauth2/v3/userinfo'
+            });
+            const data = userinfo.data as any;
+            email = data.email;
+            name = data.name;
+            picture = data.picture;
+            googleId = data.sub;
+        }
+
+        if (!email) {
+            return res.redirect(`${clientUrl}/auth/login?error=${encodeURIComponent("Could not retrieve user email from Google")}`);
+        }
+
+        let user = await UserModel.findOne({ email });
+
+        const usernameVal = name || email.split('@')[0];
+
+        if (!user) {
+            const userData: any = {
+                email,
+                username: usernameVal,
+            };
+            if (picture) userData.avatar = picture;
+            if (googleId) userData.googleId = googleId;
+
+            user = await UserModel.create(userData);
+        } else {
+            if (!user.googleId && googleId) {
+                user.googleId = googleId;
+            }
+            if (!user.avatar && picture) {
+                user.avatar = picture;
+            }
+            await user.save();
+        }
+
+        const token = jwt.sign(
+            { id: user._id, email: user.email },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '1d' }
+        );
+
+        res.cookie('token', token, getCookieOptions(req));
+
+        return res.redirect(`${clientUrl}/chat`);
+    } catch (err: any) {
+        console.error("Google auth callback error:", err);
+        return res.redirect(`${clientUrl}/auth/login?error=${encodeURIComponent("Failed to authenticate with Google")}`);
+    }
+});
+
+AuthRouter.post("/google", async (req: Request, res: Response) => {
+    const { credential } = req.body;
+    if (!credential) {
+        return res.status(400).json({ success: false, message: "Credential not provided" });
+    }
+
+    try {
+        const clientId = process.env.GOOGLE_CLIENT_ID;
+        const oAuth2Client = getGoogleOAuthClient();
+        const ticket = await oAuth2Client.verifyIdToken({
+            idToken: credential,
+            ...(clientId ? { audience: clientId } : {}),
+        });
+        const payload = ticket.getPayload();
+
+        if (!payload || !payload.email) {
+            return res.status(400).json({ success: false, message: "Invalid Google token" });
+        }
+
+        const { email, name, picture, sub: googleId } = payload;
+        const usernameVal = name || email.split('@')[0];
+
+        let user = await UserModel.findOne({ email });
+
+        if (!user) {
+            const userData: any = {
+                email,
+                username: usernameVal,
+            };
+            if (picture) userData.avatar = picture;
+            if (googleId) userData.googleId = googleId;
+
+            user = await UserModel.create(userData);
+        } else {
+            if (!user.googleId && googleId) {
+                user.googleId = googleId;
+            }
+            if (!user.avatar && picture) {
+                user.avatar = picture;
+            }
+            await user.save();
+        }
+
+        const token = jwt.sign(
+            { id: user._id, email: user.email },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '1d' }
+        );
+
+        res.cookie('token', token, getCookieOptions(req));
+
+        return res.status(200).json({
+            token,
+            success: true,
+            message: "Google login successful"
+        });
+
+    } catch (error) {
+        console.error("Google auth error:", error);
+        return res.status(500).json({ success: false, message: "Failed to authenticate with Google" });
+    }
+});
 
 AuthRouter.post('/register', async (req: Request, res: Response) => {
     const { email, username, password, avatar } = req.body;
@@ -114,85 +306,13 @@ AuthRouter.post("/login", async (req: Request, res: Response) => {
         process.env.JWT_SECRET as string,
         { expiresIn: '1d' }
     )
-   res.cookie('token', token, {
-    httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000, // 1 day, matches your JWT expiresIn
-})
+   res.cookie('token', token, getCookieOptions(req))
     return res.status(200).json({
         token,
         success: true,
         message: "login successful"
     })
 })
-
-AuthRouter.post("/google", async (req: Request, res: Response) => {
-    const { credential } = req.body;
-    if (!credential) {
-        return res.status(400).json({ success: false, message: "Credential not provided" });
-    }
-    
-    try {
-        const verifyOptions: any = {
-            idToken: credential,
-        };
-        if (process.env.GOOGLE_CLIENT_ID) {
-            verifyOptions.audience = process.env.GOOGLE_CLIENT_ID;
-        }
-        const ticket = await googleClient.verifyIdToken(verifyOptions) as any;
-        const payload = ticket.getPayload();
-        
-        if (!payload || !payload.email) {
-            return res.status(400).json({ success: false, message: "Invalid Google token" });
-        }
-        
-        const { email, name, picture, sub: googleId } = payload;
-        
-        let user = await UserModel.findOne({ email });
-        
-        if (!user) {
-            // Create user
-            user = await UserModel.create({
-                email,
-                username: name || email.split('@')[0],
-                avatar: picture,
-                googleId
-            });
-        } else if (!user.googleId) {
-            // Link google account to existing user
-            user.googleId = googleId;
-            if (!user.avatar) user.avatar = picture;
-            await user.save();
-        }
-        
-        const token = jwt.sign(
-            {
-                id: user._id,
-                email: user.email
-            },
-            process.env.JWT_SECRET as string,
-            { expiresIn: '1d' }
-        );
-        
-        res.cookie('token', token, {
-            httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 24 * 60 * 60 * 1000,
-        });
-        
-        return res.status(200).json({
-            token,
-            success: true,
-            message: "Google login successful"
-        });
-        
-    } catch (error) {
-        console.error("Google auth error:", error);
-        return res.status(500).json({ success: false, message: "Failed to authenticate with Google" });
-    }
-});
 
 AuthRouter.get("/me", authMiddleware, async (req:Request, res: Response) => {
     const user = req.user;
