@@ -179,7 +179,7 @@ export function ProfileModal({ open, onClose, user, setUser }: ProfileModalProps
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
-              className="axion-input"
+              className="zync-input"
               placeholder="Enter your username"
             />
           </div>

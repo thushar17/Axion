@@ -1,4 +1,4 @@
-# ⚡ Zync (Axion) — Enterprise-Grade Real-Time Team Messaging Platform
+# ⚡ Zync — Enterprise-Grade Real-Time Team Messaging Platform
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
@@ -102,7 +102,7 @@ graph TD
 ## 📁 Repository Structure
 
 ```
-Axion/
+Zync/
 ├── backend/                  # Node.js + Express + TypeScript Backend
 │   ├── src/
 │   │   ├── config/           # Database & environment configurations (MongoDB)
@@ -165,7 +165,7 @@ NODE_ENV=development
 CLIENT_URL=http://localhost:3000
 
 # Database
-MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/axion?retryWrites=true&w=majority
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/zync?retryWrites=true&w=majority
 
 # Authentication
 JWT_SECRET=your_super_secret_jwt_key_here
@@ -202,8 +202,8 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
 #### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/axion.git
-cd axion/Axion
+git clone https://github.com/your-username/zync.git
+cd zync
 ```
 
 #### Step 2: Set Up Backend

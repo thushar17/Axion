@@ -17,7 +17,7 @@ app.set('trust proxy', 1);
 const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000'
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://axion-alpha-blush.vercel.app',
+  'https://zync-alpha-blush.vercel.app',
 ];
 
 app.use(cors({

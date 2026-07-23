@@ -12,7 +12,7 @@ export const initializedSocket = (server) => {
     console.log("Socket server initialized");
     const allowedOrigins = [
         'http://localhost:3000',
-        'https://axion-alpha-blush.vercel.app',
+        'https://zync-alpha-blush.vercel.app',
     ];
     io = new Server(server, {
         cors: {

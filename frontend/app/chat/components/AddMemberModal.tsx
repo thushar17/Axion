@@ -33,7 +33,7 @@ export function AddMemberModal({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="axion-input"
+            className="zync-input"
             placeholder="teammate@company.com"
             required
           />

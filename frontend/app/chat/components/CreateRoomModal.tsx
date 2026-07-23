@@ -38,7 +38,7 @@ export function CreateRoomModal({
             type="text"
             value={roomName}
             onChange={(e) => setRoomName(e.target.value)}
-            className="axion-input"
+            className="zync-input"
             placeholder="e.g. general"
             required
           />

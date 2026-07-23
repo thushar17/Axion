@@ -226,7 +226,7 @@ export default function LandingPage() {
         <div className="flex gap-4">
           <a href="#" className="text-xs hover:underline" style={{ color: "var(--text-secondary)" }}>Privacy</a>
           <a href="#" className="text-xs hover:underline" style={{ color: "var(--text-secondary)" }}>Terms</a>
-          <a href="https://github.com/your-repo/axion" target="_blank" rel="noopener noreferrer" className="text-xs hover:underline" style={{ color: "var(--text-secondary)" }}>
+          <a href="https://github.com/your-repo/zync" target="_blank" rel="noopener noreferrer" className="text-xs hover:underline" style={{ color: "var(--text-secondary)" }}>
             Source
           </a>
         </div>

@@ -162,7 +162,7 @@ export default function ChatHeader({
                   type="text"
                   value={renameInput}
                   onChange={(e) => setRenameInput(e.target.value)}
-                  className="axion-input py-1 px-2 text-sm w-40"
+                  className="zync-input py-1 px-2 text-sm w-40"
                   placeholder="Room name"
                   autoFocus
                 />
