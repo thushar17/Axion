@@ -8,7 +8,7 @@ export const registerMessageHandlers = (socket: AuthSocket, io: Server) => {
     
     const userId = socket.user.id; 
   
-    const room = await RoomModel.findById({_id: data.roomId})
+    const room = await RoomModel.findById(data.roomId)
 
     const isMember = room?.members.some(
       member => member.user.toString()== userId

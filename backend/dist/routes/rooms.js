@@ -10,7 +10,6 @@ const RoomRouter = Router();
 import { generateInviteCode } from '../helpers/generateInviteCode.js';
 import { MessageModel } from '../models/messages.js';
 import { uploadAttachment } from '../config/cloudinary.js';
-import { success } from 'zod';
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
 RoomRouter.post("/create", authMiddleware, async (req, res) => {
     try {
@@ -88,12 +87,14 @@ RoomRouter.post('/add-member', authMiddleware, async (req, res) => {
         const room = await RoomModel.findOneAndUpdate({
             _id: roomId,
             'members.user': { $ne: userId }
-        }, { $addToSet: {
+        }, {
+            $addToSet: {
                 members: {
                     user: userId,
                     role: "member"
                 }
-            } }, { returnDocument: 'after' });
+            }
+        }, { returnDocument: 'after' });
         if (!room) {
             return res.status(400).json({
                 success: true,
@@ -126,7 +127,11 @@ RoomRouter.post('/add-member', authMiddleware, async (req, res) => {
         });
     }
     catch (error) {
-        console.log(error);
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
     }
 });
 // fetching members of room
@@ -384,6 +389,11 @@ RoomRouter.post("/edit-message", authMiddleware, async (req, res) => {
         });
     }
     catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
     }
 });
 // delete message route (soft delete)
@@ -697,6 +707,11 @@ RoomRouter.post("/messages/toggle-reaction", authMiddleware, async (req, res) =>
         });
     }
     catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
     }
 });
 // search in room chat 

@@ -4,7 +4,7 @@ import { notificationQueue } from "../../jobs/notification.queue.js";
 export const registerMessageHandlers = (socket, io) => {
     socket.on("send-message", async (data, callback) => {
         const userId = socket.user.id;
-        const room = await RoomModel.findById({ _id: data.roomId });
+        const room = await RoomModel.findById(data.roomId);
         const isMember = room?.members.some(member => member.user.toString() == userId);
         if (!isMember) {
             return callback({
