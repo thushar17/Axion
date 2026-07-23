@@ -29,7 +29,6 @@ Feature-rich real-time messaging interface with organized channels, direct messa
 
 ### 3. Authentication & OAuth Integration
 Secure authentication flow supporting email/password credentials and Google OAuth 2.0 single sign-on with HTTP-only cookies.
-![Zync Authentication Screen](frontend/public/screenshots/auth-screen.png)
 
 ---
 
